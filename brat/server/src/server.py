@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding:utf-8 -*-
 # -*- Mode: Python; tab-width: 4; indent-tabs-mode: nil; -*-
 # vim:set ft=python ts=4 sw=4 sts=4 autoindent:
 
@@ -13,13 +14,30 @@ NOTE(S):
 Author:     Pontus Stenetorp   <pontus is s u-tokyo ac jp>
 Version:    2011-09-29
 """
+from __future__ import print_function, absolute_import
+
+import sys
+import pysnooper
 
 from os.path import join as path_join
 from os.path import abspath
-from sys import stderr, version_info
+from sys import version_info
 from time import time
 
-from _thread import allocate_lock
+
+def eprint(*args, **kwargs):
+    print(*args, file=sys.stderr, **kwargs)
+
+# 更改模块导入
+# from _thread import allocate_lock
+
+# 是python 3.5以上导入线程的重命名为_thread
+import sys
+
+if sys.version_info < (3, 4):
+    from thread import allocate_lock
+else:
+    from _thread import allocate_lock
 
 # Constants
 # This handling of version_info is strictly for backwards compatibility
@@ -154,6 +172,7 @@ class DefaultNoneDict(dict):
         return None
 
 
+#@pysnooper.snoop()
 def _safe_serve(params, client_ip, client_hostname, cookie_data):
     # Note: Only logging imports here
     from config import WORK_DIR
@@ -275,7 +294,7 @@ def _server_crash(cookie_hdrs, e):
         Messager.error(error_msg, duration=-1)
 
     # Print to stderr so that the exception is logged by the webserver
-    print(stack_trace, file=stderr)
+    print(stack_trace, file=sys.stderr)
 
     json_dic = {
         'exception': 'serverCrash',
@@ -285,6 +304,7 @@ def _server_crash(cookie_hdrs, e):
 # Serve the client request
 
 
+#@pysnooper.snoop()
 def serve(params, client_ip, client_hostname, cookie_data):
     # The session relies on the config, wait-for-it
     cookie_hdrs = None
