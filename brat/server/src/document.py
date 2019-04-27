@@ -560,7 +560,8 @@ def _inject_annotation_type_conf(dir_path, json_dic=None):
 
 # TODO: This is not the prettiest of functions
 
-#@pysnooper.snoop()
+
+# @pysnooper.snoop()
 def get_directory_information(collection):
     directory = collection
     real_dir = real_directory(directory)
@@ -576,7 +577,9 @@ def get_directory_information(collection):
         db = DBlite()
         base_names = db.get_AnnNull_files(directory)
         names_ING = db.get_AnnING_files(directory, user)
+        print("names_ING", names_ING, file=sys.stderr)
         base_names.extend(names_ING)
+
 
     doclist = base_names[:]
     doclist_header = [("文档", "string")]
@@ -951,7 +954,8 @@ def get_document(collection, document):
     directory = collection
     real_dir = real_directory(directory)
     assert_allowed_to_read(real_dir)
-    doc_path = path_join(real_dir, document)    
+    doc_path = path_join(real_dir, document)
+
     # 标注用户更改为当前用户
     user = get_session().get('user')
     if user is None or user == 'guest':
