@@ -2,11 +2,14 @@
 # -*- Mode: Python; tab-width: 4; indent-tabs-mode: nil; coding: utf-8; -*-
 # vim:set ft=python ts=4 sw=4 sts=4 autoindent:
 
-"""Functionality shared between server components.
+"""
+Functionality shared between server components.
 
 Author:     Pontus Stenetorp    <pontus is s u-tokyo ac jp>
 Version:    2011-04-21
 """
+
+import sys
 
 
 class ProtocolError(Exception):
@@ -80,12 +83,23 @@ def deprecated_action(func):
 
 
 def relpath(path, start):
-    """Return a relative version of a path."""
+    """
+        Return a relative version of a path.
+        返回一个路径的相对版本
+
+        os.sep:文件分隔符
+        os.pardir:上级目录标志符为'..'
+        os.curdir:当前目录标识符为'.'
+        os.extsep:文件的后缀名分割符。
+        os.commonprefix和os.commonpath函数返回一组文件名相同的前缀。不同之处在与commonprefix没有将路径的分割符考虑进来
+    """
+
     from os.path import abspath, sep, pardir, commonprefix
     from os.path import join as path_join
     if not path:
         raise ValueError("no path specified")
     start_list = abspath(start).split(sep)
+    print("start_list-----------------: ", start_list, file=sys.stderr)
     path_list = abspath(path).split(sep)
     # Work out how much of the filepath is shared by start and path.
     i = len(commonprefix([start_list, path_list]))
