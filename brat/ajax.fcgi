@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# -*- Mode: Python; tab-width: 4; indent-tabs-mode: nil; -*- 
+# -*- Mode: Python; tab-width: 4; indent-tabs-mode: nil; -*-
 # vim:set ft=python ts=4 sw=4 sts=4 autoindent:
 
 '''
@@ -37,6 +37,7 @@ sys_path.append(path_join(dirname(__file__), 'server/src'))
 
 from server import serve
 
+
 def brat_app(environ, start_response):
     # Get the data required by the server
     try:
@@ -57,7 +58,7 @@ def brat_app(environ, start_response):
     cookie_hdrs, response_data = serve(params, remote_addr, remote_host,
             cookie_data)
     # Then package and send response
-   
+
     # Not returning 200 OK is a breach of protocol with the client
     response_code = '200 OK'
     # Add the cookie data if we have any
@@ -70,6 +71,7 @@ def brat_app(environ, start_response):
     start_response(response_code, response_hdrs)
     # Use yield to return all data
     yield response_data[1]
+
 
 if __name__ == '__main__':
     from sys import exit

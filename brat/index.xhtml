@@ -1,10 +1,8 @@
-<!-- -*- Mode: XHTML; tab-width: 2; indent-tabs-mode: nil; -*- -->
-<!-- vim:set ft=xhtml ts=2 sw=2 sts=2 autoindent: -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
 "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html lang="en-US" xml:lang="en-US" xmlns="http://www.w3.org/1999/xhtml">
   <head>
-    <title>brat</title>
+    <title>Delta</title>
     <meta http-equiv="Content-Type" content="application/xhtml+xml; charset=utf-8"/>
     <meta name="google" value="notranslate"/>
     <link href="static/jquery-theme/jquery-ui.css" rel="stylesheet" type="text/css"/>
@@ -44,6 +42,8 @@
           var svg = visualizer.svg;
           var visualizerUI = new VisualizerUI(dispatcher, svg);
           var annotatorUI = new AnnotatorUI(dispatcher, svg);
+          console.log("annotatorUI");
+          console.log(annotatorUI);
           var spinner = new Spinner(dispatcher, '#spinner');
           var logger = new AnnotationLog(dispatcher);
           // Util.profileEnable();
@@ -63,18 +63,16 @@
       <div>
         <div>
           <fieldset id="no_document_message">
-            <h1 class="unselectable">No document selected</h1>
-            <p class="unselectable">To select a document:</p>
+            <h1 class="unselectable">没有文档选定</h1>
+            <p class="unselectable">选定文档方式:</p>
             <ul>
-              <li class="unselectable">press the <strong>TAB</strong> key, or</li>
-              <li class="unselectable">click on &quot;<strong>Collection</strong>&quot; in the blue menu bar on top</li>
+              <li class="unselectable">按 <strong>TAB</strong> 键, 或</li>
+              <li class="unselectable">点击在顶部黑色菜单栏中&quot;<strong>Collection</strong>&quot;。</li>
             </ul>
           </fieldset>
           <fieldset id="loading_message" style="display:none">
-            <h1 class="unselectable">Loading ...</h1>
-            <p class="unselectable">This may take a while, in
-              particular when loading a larger document collection.
-              Please wait.
+            <h1 class="unselectable">加载中 ...</h1>
+            <p class="unselectable">这可能需要一段时间，特别是在加载较大的文档集合时。请稍等。
             </p>
           </fieldset>
         </div>
@@ -84,15 +82,13 @@
       <div>
         <div>
           <fieldset>
-            <h1 class="unselectable">No JavaScript</h1>
-            <p class="unselectable">Your browser has JavaScript
-              disabled, or does not support it.</p>
+            <h1 class="unselectable">禁用了JavaScript</h1>
+            <p class="unselectable">您的浏览器禁用了JavaScript，或者不支持它。</p>
             <p class="unselectable">
-              <span class="logo">brat</span>
-              needs JavaScript in order to run.
+              <span class="logo">Akaros</span>
+              需要JavaScript才能运行。.
             </p>
-            <p class="unselectable">Please enable JavaScript or try
-              a <a href="http://brat.nlplab.org/supported-browsers.html">supported browser</a>
+            <p class="unselectable">请启动JavaScript或下载支持的浏览器。
             </p>
           </fieldset>
         </div>
@@ -109,262 +105,237 @@
     <div id="commentpopup"/>
     <div id="header" class="ui-widget">
       <div id="mainHeader" class="ui-widget-header">
-        <div id="mainlogo" class="logo unselectable">brat</div>
+        <div id="mainlogo" class="logo unselectable">Akaros标注系统</div>
         <span id="navbuttons">
-          <img id="prev" alt="Previous document (Cursor Left)" title="Previous document (Cursor Left)" src="static/img/arrow-180.png"/><img id="next" alt="Next document (Cursor Right)" title="Next document (Cursor Right)" src="static/img/arrow.png"/>
+         <img id="prev" alt="上一个文档 (左箭头)" title="上一个文档 (左箭头)" src="static/img/arrow-180.png"/><img id="next" alt="下一个文档 (右箭头)" title="下一个文档 (右箭头)" src="static/img/arrow.png"/>
         </span>
         <div id="document_name">
           <input readonly="readonly" class="ui-widget-header"/>
         </div>
         <!-- <span id="document_ctime"/> -->
       </div>
+
       <div id="pulldown" class="unselectable ui-widget-content">
         <div id="pulldown_padder">
           <div>
-            <input id="auth_button" type="button" value="Login"/>
+            <input id="auth_button" type="button" value="登录"/>
             <input id="collection_browser_button" type="button" value="Collection" tabindex="-1" title="Open Collection Browser (Tab)"/>
             <input id="data_button" type="button" value="Data" tabindex="-1" title="Import, Export Data; Manage Collection"/>
-            <input id="search_button" type="checkbox" class="login" value="true" tabindex="-1"/><label id="search_button_label" for="search_button" title="Search text and annotations">Search</label><input id="clear_search_button" type="button" value="✕" tabindex="-1" title="Clear search" style="display: none"/>
-            <input id="unlock_type_button" type="button" value="Unlock" tabindex="-1" title="Stop annotating with the locked type"/>
+            <input id="search_button" type="checkbox" class="login" value="true" tabindex="-1"/><label id="search_button_label" for="search_button" title="搜索文本和标注">搜索</label><input id="clear_search_button" type="button" value="✕" tabindex="-1" title="清空搜索" style="display: none"/>
             <!--<input id="undo_button" type="button" class="login" value="Undo" tabindex="-1"/>-->
-            <input id="options_button" type="button" value="Options" tabindex="-1" title="Set Visual, Annotation and Network Options"/>
+            <input id="options_button" type="button" value="选项" tabindex="-1" title="设置可视化、注释和网络选项"/>
+            <a class="help-btn" target="manual" href="http://brat.nlplab.org/manual.html">brat在线帮助</a>
           </div>
           <!-- Dummy span, fixes visual glitch (issue #535). TODO: better fix -->
           <span class="document_edit_time unselectable">&nbsp;</span>
           <div id="document_mtime" class="document_edit_time unselectable">&nbsp;</div>
-          <a id="help_link" target="manual" href="http://brat.nlplab.org/manual.html">Help <img src="static/img/Fugue-shadowless-question.png"/></a>
+
         </div>
       </div>
-    </div>
+
+   </div>
     <div id="svg"></div>
-    <form id="import_form" class="dialog" title="Import">
+    <div class="help-block">
+      <span id="annotation_submit" class="btn">添加文档</span>
+      <p class="des">说明：用来添加文档进行操作。</p>
+      <span id="complete_submit" class="btn">完成提交</span>
+      <p class="des">说明：这是用来标注完成后才能进行提交。</p>
+    </div>
+    <form id="import_form" class="dialog" title="导入">
       <fieldset id="import_form_docid">
-        <legend>Document ID</legend>
+        <legend>文档ID</legend>
         <input id="import_docid" class="borderless"/>
       </fieldset>
+      <fieldset id="import_form_title">
+        <legend>文档标题</legend>
+        <input id="import_title" class="borderless"/>
+      </fieldset>
       <fieldset id="import_form_text">
-        <legend>Document text</legend>
+        <legend>文档内容</legend>
         <textarea id="import_text" class="borderless"/>
       </fieldset>
     </form>
-    <form id="import_coll_form" class="dialog" title="Import collection">
-      <fieldset id="import_coll_form_text">
-        <legend>Collection archive (.zip, .tar.gz)</legend>
-        <input type="file" id="import_coll" class="borderless" accept="application/zip,application/x-gzip" />
-      </fieldset>
-    </form>
     <!-- Data dialog -->
-    <form id="data_form" class="dialog" title="Data">
+    <form id="data_form" class="dialog" title="数据">
       <!-- Data dialog export section -->
       <fieldset class="small-buttons">
-        <legend>Export</legend>
+        <legend>导出</legend>
         <div class="optionRow">
-          <span id="document_export" class="optionLabel">Document data</span>
+          <span id="document_export" class="optionLabel">文档数据</span>
           <span id="source_files"/>
         </div>
         <div id="document_visualization" class="optionRow">
-          <span class="optionLabel">Visualization</span>
+          <span class="optionLabel">可视化</span>
           <span id="stored_file_spinner" class="ui-button ui-widget ui-corner-all ui-state-default ui-button-text-only">
             <span class="ui-button-text">
               <img style="vertical-align:bottom" height="18"
                    src="static/img/spinner.gif"/>
             </span>
           </span>
-          <span id="stored_file_regenerate" title="Regenerate static visualization of the current document">regenerate</span>
+          <span id="stored_file_regenerate" title="重新生成当前文档的静态可视化">重新生成</span>
           <span id="download_stored"/>
         </div>
         <div class="optionRow">
-          <span class="optionLabel">Collection data</span>
-          <span id="source_collection" title="Download the entire current collection as a .tar.gz package"/>
-          Conf files:
-          <span id="source_collection_conf">
-            <input type="radio" id="source_collection_conf_off" value="0"
-                   name="source_collection_conf_radio"/>
-            <label for="source_collection_conf_off"
-                   title="Do not include the configuration files">off</label>
-            <input type="radio" id="source_collection_conf_on" value="1"
-                   name="source_collection_conf_radio" checked="checked"/>
-            <label for="source_collection_conf_on"
-                   title="Do include the configuration files">on</label>
-          </span>
+          <span class="optionLabel">数据集</span>
+          <span id="source_collection" title="以.tar.gz包的形式下载当前的整个集"/>
         </div>
       </fieldset>
       <!-- Data dialog comparison section -->
       <fieldset class="small-buttons">
         <legend>Compare</legend>
         <div class="optionRow">
-          <span class="optionLabel">Side-by-side</span>
-          <span id="side-by-side_cmp" title="Enter side-by-side comparison mode"/>
+          <span class="optionLabel">并排</span>
+          <span id="side-by-side_cmp" title="进入并排比较模式"/>
         </div>
       </fieldset>
       <!-- Data dialog automatic annotation section -->
       <div id="auto_tagging_login_control" class="login">
         <fieldset id="auto_tagging_fieldset" class="small-buttons">
-          <legend>Automatic annotation</legend>
-          <div class="optionRow">Automatically tag current document</div>
+          <legend>自动标注</legend>
+          <div class="optionRow">自动标记当前文档</div>
           <div id="tagger_buttons"/>
         </fieldset>
         <fieldset id="no_tagger_message" style="display:none">
-          <legend>Automatic annotation</legend>
-          <div style="color:gray; font-size:80%; text-align:center; margin:1em">(No tools set up. Please contact server administrator if needed.)</div>
+          <legend>自动标注</legend>
+          <div style="color:gray; font-size:80%; text-align:center; margin:1em">(没有设置任何工具。如有需要，请与服务器管理员联系.)</div>
         </fieldset>
       </div>
       <!-- Data dialog import section -->
       <fieldset class="login small-buttons">
-        <legend>Import</legend>
+        <legend>导入</legend>
         <div class="optionRow">
-          <span class="optionLabel">New document</span>
-          <input id="import_button" type="button" class="login ui-button-text" value="Enter text" tabindex="-1" title="Import a new document into the current collection"/>
+          <span class="optionLabel">新文档</span>
+          <input id="import_button" type="button" class="login ui-button-text" value="Enter text" tabindex="-1" title="将新文档导入当前数据集"/>
         </div>
-        <!-- XXX Taken out until such time when serverside is
-                 implemented, pending resolution of issues
-                 raised in #216
         <div class="optionRow">
-          <span class="optionLabel">New collection</span>
-          <input id="import_collection_button" type="button" class="login ui-button-text" value="Upload archive" tabindex="-1" title="Import an entire collection into the current installation"/>
+          <span class="optionLabel">新数据集</span>
+          <input id="import_collection_button" type="button" class="login ui-button-text" value="上传 tar.gz" tabindex="-1" title="将整个数据集导入当前安装"/>
         </div>
-        -->
       </fieldset>
       <!-- Data dialog delete section -->
       <div style="display: none;">
         <fieldset class="login small-buttons">
-          <legend>Delete</legend>
+          <legend>删除</legend>
           <div class="optionRow">
-            <span class="optionLabel">Current document</span>
-            <input id="delete_document_button" type="button" class="login ui-button-text" value="Delete document" tabindex="-1" title="Permanently remove the current document and its annotations from the collection."/>
+            <span class="optionLabel">当前文档</span>
+            <input id="delete_document_button" type="button" class="login ui-button-text" value="删除文档" tabindex="-1" title="从数据集中永久删除当前文档及其标注."/>
           </div>
           <div class="optionRow">
-            <span class="optionLabel">Current collection</span>
-            <input id="delete_collection_button" type="button" class="login ui-button-text" value="Delete collection" tabindex="-1" title="Permanently remove the entire current collection and all documents in it."/>
+            <span class="optionLabel">当前数据集</span>
+            <input id="delete_collection_button" type="button" class="login ui-button-text" value="删除数据集" tabindex="-1" title="永久删除整个当前数据集和其中的所有文档."/>
           </div>
         </fieldset>
       </div>
     </form>
     <!-- Options dialog -->
-    <form id="options_form" class="dialog" title="Options">
+    <form id="options_form" class="dialog" title="选项">
       <fieldset id="options_form_visual">
-        <legend>Visual options</legend>
+        <legend>可视化选项</legend>
         <div class="optionRow">
-          <span class="optionLabel">Abbreviate labels</span>
+          <span class="optionLabel">缩写标签</span>
           <span id="label_abbreviations" class="radio_group small-buttons">
             <input type="radio" id="label_abbreviations_off" value="off"
                    name="label_abbrev_radio"/>
             <label for="label_abbreviations_off"
-                   title="Always display full form of labels.">Off</label>
+                   title="Always display full form of labels.">关</label>
             <input type="radio" id="label_abbreviations_on" value="on"
                    name="label_abbrev_radio" checked="checked"/>
             <label for="label_abbreviations_on"
-                   title="Abbreviate annotation labels in limited space.">On</label>
+                   title="Abbreviate annotation labels in limited space.">开</label>
           </span>
         </div>
         <div class="optionRow">
-          <span class="optionLabel">Text background</span>
+          <span class="optionLabel">文本背景</span>
           <span id="text_backgrounds" class="radio_group small-buttons">
             <input type="radio" id="text_backgrounds_blank" value="blank"
                    name="text_background_radio"/>
             <label for="text_backgrounds_blank"
-                   title="Blank white text backgrounds.">Blank</label>
+                   title="空白白色文本背景.">空白</label>
             <input type="radio" id="text_backgrounds_striped" value="striped"
                    name="text_background_radio" checked="checked"/>
             <label for="text_backgrounds_striped"
-                   title="Striped text backgrounds with every second sentence on light gray background.">Striped</label>
+                   title="条带文本背景，每隔两句话在浅灰色背景上.">条带</label>
           </span>
         </div>
         <div class="optionRow">
-          <span class="optionLabel">Layout density</span>
+          <span class="optionLabel">布局密度</span>
           <span id="layout_density" class="radio_group small-buttons">
             <input type="radio" id="layout_density1" value="1"
                    name="layout_radio"/>
             <label for="layout_density1"
-                   title="Dense annotation layout: minimizes space taken by annotations.">Dense</label>
+                   title="密集注释布局:最小化注释占用的空间。">加窄</label>
             <input type="radio" id="layout_density2" value="2"
                    name="layout_radio" checked="checked" />
             <label for="layout_density2"
-                   title="Normal annotation layout density: balances between annotation size and readability.">Normal</label>
+                   title="常规注释布局密度:注释大小和可读性之间的平衡.">正常</label>
             <input type="radio" id="layout_density3" value="3"
                    name="layout_radio"/>
             <label for="layout_density3"
-                   title="Spacious annotation layout: allows extra space for annotations to improve readability.">Spacious</label>
+                   title="Spacious annotation layout: allows extra space for annotations to improve readability.">加宽</label>
           </span>
         </div>
         <div class="optionRow">
-          <span class="optionLabel">Visualization width</span>
+          <span class="optionLabel">可视化宽度</span>
           <input id="svg_width_value" maxlength="3" size="3" value="100"
                  style="text-align:right"/>
           <span id="svg_width_unit" class="radio_group small-buttons">
             <input type="radio" id="svg_width_unit_percent" value="%"
                    name="svg_width_radio" checked="checked"/>
-            <label for="svg_width_unit_percent">percent</label>
+            <label for="svg_width_unit_percent">百分比</label>
             <input type="radio" id="svg_width_unit_pixels" value="px"
                    name="svg_width_radio"/>
-            <label for="svg_width_unit_pixels">pixels</label>
+            <label for="svg_width_unit_pixels">像素</label>
           </span>
-        </div>
-        <div class="optionRow small-buttons">
-          <span class="optionLabel">Paging</span>
-          size
-          <input id="paging_size" maxlength="3" size="3" value="10"
-                 style="text-align:right"/>,
-          step
-          <input id="paging_step" maxlength="3" size="3" value="5"
-                 style="text-align:right"/>
-          sentences
-          <input type="button" id="paging_clear" value="Clear"/>
         </div>
       </fieldset>
       <fieldset id="options_form_annotation" class="login">
-        <legend>Annotation options</legend>
+        <legend>标注选项</legend>
         <div class="optionRow">
-          <span class="optionLabel">Annotation mode</span>
+          <span class="optionLabel">标注模式</span>
           <span id="annotation_speed" class="radio_group small-buttons">
             <input type="radio" id="annotation_speed1" value="1"
                    name="annspeed_radio" checked="checked"/>
             <label for="annotation_speed1"
-                   title="Careful annotation mode: ask for additional confirmation of annotation changes. Suitable for annotators in training and for mature corpora requiring few changes.">Careful</label>
+                   title="谨慎的注释模式:请求对注释更改进行额外的确认。适用于培训中的注释者和需要少量修改的成熟语料库">细致</label>
             <input type="radio" id="annotation_speed2" value="2"
                    name="annspeed_radio"/>
             <label for="annotation_speed2"
-                   title="Normal annotation mode. Suitable for standard annotation processes.">Normal</label>
+                   title="Normal annotation mode. Suitable for standard annotation processes.">正常</label>
             <input type="radio" id="annotation_speed3" value="3"
                    name="annspeed_radio"/>
             <label for="annotation_speed3"
-                   title="Rapid annotation mode: activate automatic support for speeding up annotation process. Suitable for experienced annotators performing an established task.">Rapid</label>
+                   title="Rapid annotation mode: activate automatic support for speeding up annotation process. Suitable for experienced annotators performing an established task.">快速</label>
             <select id="rapid_model"/>
           </span>
         </div>
-        <div class="optionRow">
-          <span class="optionLabel">Type Collapse Limit</span>
-          <input id="type_collapse_limit" maxlength="3" size="3" value="30"
-                 style="text-align:right"/>
-        </div>
       </fieldset>
       <fieldset id="options_form_network">
-        <legend>Network options</legend>
+        <legend>网络选项</legend>
         <div class="optionRow">
-          <span class="optionLabel">Collaboration</span>
+          <span class="optionLabel">协作</span>
           <span class="small-buttons">
             <input id="autorefresh_mode" type="checkbox"/>
             <label for="autorefresh_mode"
-                   title="Toggle the autorefresh mode on/off. When autorefresh is on, the system will periodically check with the server for updates to the document you are working on. This is useful when collaborating on annotation but consumes some resources, so you may wish to turn autorefresh off if there are no simultaneous edits.">Autorefresh</label>
+                   title="Toggle the autorefresh mode on/off. When autorefresh is on, the system will periodically check with the server for updates to the document you are working on. This is useful when collaborating on annotation but consumes some resources, so you may wish to turn autorefresh off if there are no simultaneous edits.">自动刷新</label>
           </span>
         </div>
       </fieldset>
     </form>
     <!-- More collection information dialog -->
-    <form id="more_information_dialog" class="dialog" title="Collection information">
+    <form id="more_information_dialog" class="dialog" title="数据集信息">
       <fieldset>
         <textarea id="more_info_readme" readonly="readonly" class="borderless"/>
       </fieldset>
     </form>
     <!-- Search dialog -->
-    <form id="search_form" class="dialog" title="Search">
+    <form id="search_form" class="dialog" title="搜索">
       <div id="search_tabs">
         <ul>
-          <li><a href="#search_tab_text">Text</a></li>
-          <li><a href="#search_tab_entity">Entity</a></li>
-          <li><a href="#search_tab_event">Event</a></li>
-          <li><a href="#search_tab_relation">Relation</a></li>
-          <li><a href="#search_tab_note">Note</a></li>
+          <li><a href="#search_tab_text">文本</a></li>
+          <li><a href="#search_tab_entity">实体</a></li>
+          <li><a href="#search_tab_event">事件</a></li>
+          <li><a href="#search_tab_relation">关系</a></li>
+          <li><a href="#search_tab_note">注解</a></li>
           <!-- XXX removed per #900
           <li><a href="#search_tab_load">Load</a></li>
           -->
@@ -372,10 +343,10 @@
         <div id="search_tab_text">
           <table class="fullwidth">
             <tr>
-              <td>Text</td>
+              <td>文本</td>
               <td>
                 <input id="search_form_text_text" class="fullwidth"
-                    placeholder="Text to match"/>
+                    placeholder="匹配文本"/>
               </td>
             </tr>
           </table>
@@ -383,16 +354,16 @@
         <div id="search_tab_entity">
           <table class="fullwidth">
             <tr>
-              <td>Type</td>
+              <td>类型</td>
               <td>
                 <select id="search_form_entity_type"/>
               </td>
             </tr>
             <tr>
-              <td>Text</td>
+              <td>文本</td>
               <td>
                 <input id="search_form_entity_text" class="fullwidth"
-                    placeholder="Text to match (empty=anything)"/>
+                    placeholder="匹配文本 (empty=anything)"/>
               </td>
             </tr>
           </table>
@@ -400,16 +371,16 @@
         <div id="search_tab_event">
           <table class="fullwidth">
             <tr>
-              <td>Type</td>
+              <td>类型</td>
               <td colspan="3">
                 <select id="search_form_event_type"/>
               </td>
             </tr>
             <tr>
-              <td>Trigger</td>
+              <td>触发器</td>
               <td colspan="3">
                 <input id="search_form_event_trigger" class="fullwidth"
-                    placeholder="Text to match (empty=anything)"/>
+                    placeholder="匹配文本 (empty=anything)"/>
               </td>
             </tr>
             <tbody id="search_form_event_roles"/>
@@ -418,90 +389,58 @@
         <div id="search_tab_relation">
           <table class="fullwidth">
             <tr>
-              <td>Type</td>
+              <td>类型</td>
               <td colspan="2">
                 <select id="search_form_relation_type" class="fullwidth"/>
               </td>
             </tr>
             <tr>
-              <td>Arg1</td>
+              <td>参数1</td>
               <td>
                 <select id="search_form_relation_arg1_type" class="fullwidth"/>
               </td>
               <td>
                 <input id="search_form_relation_arg1_text" class="fullwidth"
-                    placeholder="Text to match (empty=anything)"/>
+                    placeholder="匹配文本(empty=anything)"/>
               </td>
             </tr>
             <tr>
-              <td>Arg2</td>
+              <td>参数2</td>
               <td>
                <select id="search_form_relation_arg2_type" class="fullwidth"/>
               </td>
               <td>
                 <input id="search_form_relation_arg2_text" class="fullwidth"
-                    placeholder="Text to match (empty=anything)"/>
+                    placeholder="匹配文本 (empty=anything)"/>
               </td>
             </tr>
           </table>
-          <div class="optionRow">
-            <span class="optionLabel">Show arg text</span>
-            <span id="search_form_relation_show_arg_text"
-                  class="radio_group small-buttons">
-              <input type="radio" id="search_form_relation_show_arg_text_off"
-                     value="off" name="search_form_relation_show_arg_text_radio"
-                     checked="checked"/>
-              <label for="search_form_relation_show_arg_text_off"
-                     title="Don't show texts of relation arguments in search results.">off</label>
-              <input type="radio" id="search_form_relation_show_arg_text_on"
-                     value="on"
-                     name="search_form_relation_show_arg_text_radio"/>
-              <label for="search_form_relation_show_arg_text_on"
-                     title="Show texts of relation arguments in search results.">on</label>
-            </span>
-          </div>
-          <div class="optionRow">
-            <span class="optionLabel">Show arg type</span>
-            <span id="search_form_relation_show_arg_type"
-                  class="radio_group small-buttons">
-              <input type="radio" id="search_form_relation_show_arg_type_off"
-                     value="off" name="search_form_relation_show_arg_type_radio"
-                     checked="checked"/>
-              <label for="search_form_relation_show_arg_type_off"
-                     title="Don't show types of relation arguments in search results.">off</label>
-              <input type="radio" id="search_form_relation_show_arg_type_on"
-                     value="on"
-                     name="search_form_relation_show_arg_type_radio"/>
-              <label for="search_form_relation_show_arg_type_on"
-                     title="Show types of relation arguments in search results.">on</label>
-            </span>
-          </div>
         </div>
         <div id="search_tab_note">
           <table class="fullwidth">
             <tr>
-              <td>Category</td>
+              <td>分类</td>
               <td>
                 <select id="search_form_note_category" class="fullwidth">
-                  <option value="">- Any -</option>
-                  <option value="entity">Entity</option>
-                  <option value="event">Event</option>
-                  <option value="relation">Relation</option>
-                  <option value="sentence">Sentence</option>
+                  <option value="">- 任意 -</option>
+                  <option value="entity">实体</option>
+                  <option value="event">事件</option>
+                  <option value="relation">关系</option>
+                  <option value="sentence">句子</option>
                 </select>
               </td>
             </tr>
             <tr id="search_form_note_type_row">
-              <td>Type</td>
+              <td>类型</td>
               <td>
                 <select id="search_form_note_type" class="fullwidth"/>
               </td>
             </tr>
             <tr>
-              <td>Text</td>
+              <td>文本</td>
               <td>
                 <input id="search_form_note_text" class="fullwidth"
-                    placeholder="Text to match (empty=anything)"/>
+                    placeholder="匹配文本 (empty=anything)"/>
               </td>
             </tr>
           </table>
@@ -521,19 +460,19 @@
         -->
       </div>
       <fieldset id="search_options">
-        <legend>Options</legend>
-        <a href="" id="advanced_search_option_toggle">Show advanced</a>
+        <legend>选项</legend>
+        <a href="" id="advanced_search_option_toggle">高级选项</a>
         <div class="optionRow">
-          <span class="optionLabel">Search in current</span>
+          <span class="optionLabel">搜索当前</span>
           <span id="search_scope" class="radio_group small-buttons">
             <input type="radio" id="search_scope_doc" value="document"
                    name="search_scope_radio" checked="checked"/>
             <label for="search_scope_doc"
-                   title="Search in current document only.">document</label>
+                   title="Search in current document only.">文档</label>
             <input type="radio" id="search_scope_coll" value="collection"
                    name="search_scope_radio"/>
             <label for="search_scope_coll"
-                   title="Search in all documents in current collection.">collection</label>
+                   title="Search in all documents in current collection.">数据集</label>
           </span>
         </div>
         <div class="advancedOptions">
@@ -543,11 +482,11 @@
             <input type="radio" id="concordancing_off" value="document"
                    name="concordancing_radio" checked="checked"/>
             <label for="concordancing_off"
-                   title="Display matched search results only.">off</label>
+                   title="Display matched search results only.">关</label>
             <input type="radio" id="concordancing_on" value="collection"
                    name="concordancing_radio"/>
             <label for="concordancing_on"
-                   title="In addition to search results, display also the text context of the matches in Key Word In Context (KWIC) format.">on</label>
+                   title="In addition to search results, display also the text context of the matches in Key Word In Context (KWIC) format.">开</label>
           </span>
         </div>
         <div id="context_size_div" class="optionRow">
@@ -589,18 +528,18 @@
     <!-- Span dialog (view only) -->
     <form id="viewspan_form" class="dialog" title="Span">
       <fieldset id="viewspan_selected_fset">
-        <legend>Text</legend>
-        <a target="brat_linked" id="viewspan_highlight_link" href="#">Link</a>
+        <legend>文本</legend>
+        <a target="brat_linked" id="viewspan_highlight_link" href="#">链接</a>
         <div id="viewspan_selected"/>
       </fieldset>
 
       <fieldset id="viewspan_search_fieldset">
-        <legend>Search</legend>
+        <legend>搜索</legend>
         <div id="viewspan_search_links"/>
       </fieldset>
 
       <fieldset>
-        <legend>Notes</legend>
+        <legend>注解</legend>
         <input id="viewspan_notes" class="borderless" readonly="readonly"/>
       </fieldset>
     </form>
@@ -608,20 +547,20 @@
     <form id="span_form" class="dialog" title="Span">
       <!-- Span dialog annotated text -->
       <fieldset id="span_selected_fset">
-        <legend>Text</legend>
-        <a target="brat_linked" id="span_highlight_link" href="#">Link</a>
+        <legend>文本</legend>
+        <a target="brat_linked" id="span_highlight_link" href="#">链接</a>
         <div id="span_selected"/>
       </fieldset>
       <!-- Span dialog search links -->
       <fieldset id="span_search_fieldset">
-        <legend>Search</legend>
+        <legend>搜索</legend>
         <div id="span_search_links"/>
       </fieldset>
       <!-- Span dialog type selector -->
       <fieldset>
         <div id="entity_and_event_wrapper" class="split_wrapper">
           <div id="span_entity_section" class="wrapper_half_left">
-            <div id="entity_label" class="label-like">Entity type</div>
+            <div id="entity_label" class="label-like">实体类型</div>
             <div id="entity_types" class="scroll_wrapper_upper">
               <div class="scroller"/>
             </div>
@@ -629,17 +568,17 @@
                  divs they logically belong to prevent scrollers
                  overflowing them. -->
             <div id="entity_attribute_label"
-                 class="label-like wrapper_lower_label">Entity attributes</div>
+                 class="label-like wrapper_lower_label">实体属性</div>
             <div id="entity_attributes" class="scroll_wrapper_lower">
               <div class="scroller small-buttons"/>
             </div>
           </div><div id="span_event_section" class="wrapper_half_right">
-            <div id="event_label" class="label-like">Event type</div>
+            <div id="event_label" class="label-like">事件类型</div>
             <div id="event_types" class="scroll_wrapper_upper">
               <div class="scroller"/>
             </div>
             <div id="event_attribute_label"
-                 class="wrapper_lower_label label-like">Event attributes</div>
+                 class="wrapper_lower_label label-like">事件属性</div>
             <div id="event_attributes" class="scroll_wrapper_lower">
               <div class="scroller small-buttons"/>
             </div>
@@ -648,7 +587,7 @@
       </fieldset>
       <!-- Span dialog normalization -->
       <fieldset id="norm_fieldset">
-        <legend>Normalization</legend>
+        <legend>标准化</legend>
         <div id="norm_container">
           <select id="span_norm_db"/>
           <a id="span_norm_db_link" target="brat_linked" href="#" title="Search DB"><img src="static/img/Fugue-shadowless-magnifier.png" style="vertical-align: middle"/></a>
@@ -666,23 +605,23 @@
       </fieldset>
       <!-- Span dialog notes -->
       <fieldset>
-        <legend>Notes</legend>
-        <div id="span_notes_container">
+        <legend>注解</legend>
+        <div id="notes_container">
           <input id="span_notes" class="borderless"/>
-          <input id="clear_span_notes_button" type="button"
-                 value="&#x2715;" title="Clear notes"/>
+          <input id="clear_notes_button" type="button"
+                 value="&#x2715;" title="清除注解"/>
         </div>
       </fieldset>
     </form>
     <!-- Rapid mode span dialog -->
     <form id="rapid_span_form" class="dialog" title="Span type">
       <fieldset id="rapid_span_selected_fset">
-        <legend>Text</legend>
+        <legend>文本</legend>
         <div id="rapid_span_selected"/>
       </fieldset>
       <div id="rapid_span_types" class="scroll_fset" style="height:250px">
         <fieldset>
-          <legend>Select type</legend>
+          <legend>选择类型</legend>
           <div class="scroller" id="rapid_span_types_div">
             <!-- filled dynamically -->
           </div>
@@ -693,7 +632,7 @@
     <form id="arc_form" class="dialog" title="Arc">
       <fieldset id="arc_origin_fset">
         <legend>From</legend>
-        <a target="brat_linked" id="arc_highlight_link" href="#">Link</a>
+        <a target="brat_linked" id="arc_highlight_link" href="#">链接</a>
         <div id="arc_origin"/>
       </fieldset>
 
@@ -704,73 +643,70 @@
 
       <div id="arc_roles" class="scroll_fset">
         <fieldset>
-          <legend>Type</legend>
+          <legend>类型</legend>
           <div class="scroller"/>
         </fieldset>
       </div>
 
       <fieldset id="arc_notes_fieldset">
-        <legend>Notes</legend>
-        <div id="arc_notes_container">
-          <input id="arc_notes" class="borderless"/>
-          <input id="clear_arc_notes_button" type="button"
-                  value="&#x2715;" title="Clear notes"/>
-        </div>
+        <legend>注解</legend>
+        <input id="arc_notes" class="borderless"/>
       </fieldset>
 
     </form>
     <!-- Login dialog -->
-    <form id="auth_form" class="dialog" title="Login">
+    <form id="auth_form" class="dialog" title="登录">
       <fieldset>
-        <legend>Username</legend>
-        <input id="auth_user" placeholder="Username" class="borderless"/>
+        <legend>用户名</legend>
+        <input id="auth_user" placeholder="输入用户名" class="borderless"/>
       </fieldset>
       <fieldset>
-        <legend>Password</legend>
-        <input id="auth_pass" type="password" placeholder="Password" class="borderless"/>
+        <legend>密码</legend>
+        <input id="auth_pass" type="password" placeholder="输入密码" class="borderless"/>
       </fieldset>
     </form>
     <!-- Split span annotation dialog -->
-    <form id="split_form" class="dialog" title="Split the Span">
+    <form id="split_form" class="dialog" title="拆分span">
       <fieldset>
-        <legend>Split Roles</legend>
+        <legend>拆分角色</legend>
         <div id="split_roles" class="scroll_fset"/>
       </fieldset>
     </form>
     <!-- Browser dialog -->
-    <form id="collection_browser" class="dialog" title="Open">
+    <form id="collection_browser" class="dialog" title="打开">
       <fieldset>
-        <legend>Collection</legend>
-        <input id="collection_input" readonly="readonly" placeholder="Document" class="borderless"/>
+        <legend>数据集</legend>
+        <input id="collection_input" readonly="readonly" placeholder="文档" class="borderless"/>
       </fieldset>
       <fieldset>
-        <legend>Collection Information</legend>
+        <legend>数据集信息</legend>
         <div id="readme_container">
           <input id="readme" readonly="readonly" class="borderless"/>
-          <input id="more_readme_button" type="button" value="More..." title="Show full collection information text"/>
+          <input id="more_readme_button" type="button" value="更多..." title="显示完整的数据集信息"/>
         </div>
       </fieldset>
       <fieldset>
-        <legend>Document</legend>
-        <input id="document_input" placeholder="Document" class="borderless"/>
+        <legend>文档</legend>
+        <input id="document_input" placeholder="文档" class="borderless"/>
       </fieldset>
       <table id="document_select" class="ui-widget unselectable">
         <thead class="ui-widget-header"/>
         <tbody class="ui-widget-content"/>
       </table>
     </form>
+
     <!-- Normalization DB search dialog -->
-    <form id="norm_search_dialog" class="dialog" title="Search">
+    <form id="norm_search_dialog" class="dialog" title="搜索">
       <fieldset>
-        <legend>Query</legend>
+        <legend>请求</legend>
         <div id="norm_search_container">
-          <input id="norm_search_query" placeholder="Query string" class="borderless"/>
-          <input id="norm_search_button" type="button" value="Search"/>
+          <input id="norm_search_query" placeholder="请求字符串" class="borderless"/>
+          <input id="norm_search_button" type="button" value="搜索"/>
         </div>
       </fieldset>
       <fieldset>
         <legend>ID</legend>
-        <input id="norm_search_id" placeholder="Identifier" class="borderless" readonly="readonly"/>
+        <input id="norm_search_id" placeholder="ID" class="borderless" readonly="readonly"/>
       </fieldset>
       <table id="norm_search_result_select" class="ui-widget unselectable">
         <thead class="ui-widget-header"/>
@@ -778,98 +714,26 @@
       </table>
     </form>
     <!-- Spinner -->
-    <div id="waiter" class="dialog" title="Please wait">
+    <div id="waiter" class="dialog" title="请等待">
       <img src="static/img/spinner.gif"/>
     </div>
     <!-- "About" dialog -->
-    <div id="about" class="dialog unselectable" title="About brat">
-      <div id="aboutlogo" class="logo">brat</div>
+    <div id="about" class="dialog unselectable" title="关于 abrat">
+      <div id="aboutlogo" class="logo">Akaros</div>
       <!--This software is distributed under the <a target="licence" href="http://www.opensource.org/licenses/isc-license">ISC Licence</a>.-->
-      <div align="center">brat rapid annotation tool</div>
-      <div style="font-size:60%" align="center">v1.3 "Crunchy Frog"</div>
-      <div id="copyright">&copy; 2010-2012 The brat contributors</div>
+      <div align="center">Akaros快速注释工具，该工具是基于brat更改，所有brat代码归其所有。</div>
+      <div style="font-size:60%" align="center">v0.1"</div>
+      <div id="copyright">&copy; akaros团队</div>
     </div>
     <!-- Welcome/tutorial dialog -->
-    <div id="tutorial" class="dialog unselectable" title="Tutorial">
-      <h2>Welcome to the brat annotation tool!</h2>
-      <div id="browserwarning">
+    <div id="tutorial" class="dialog unselectable" title="培训">
+      <h2>欢迎使用Akaros标注工具!</h2>
+      <div>
         <p>
-        Please be aware that
-        <span class="logo">brat</span>
-        is currently only fully supported on
-        <a href="http://www.google.com/chrome">Google Chrome</a>
-        and
-        <a href="http://www.apple.com/safari/">Safari</a>.
-        In other browsers, it may exhibit various degrees of problems,
-        from minor annoyances to severe ones that make
-        <span class="logo">brat</span>
-        unusable. For more information, see the page on
-        <a href="http://brat.nlplab.org/supported-browsers.html" target="manual">browser support</a>.
-        </p>
-        <p>
-          Please consider using <span class="logo">brat</span> in
-          a fully supported browser for a better user experience.
+          在使用过程如果发现应该问题，欢迎联系<a href="mailto:service@akaros.cn">service@akaros.cn</a>。
+          更多关于brat信息，可以访问其官网： <a href="http://brat.nlplab.org">http://brat.nlplab.org</a>
         </p>
       </div>
-      <p>Below is a mini-tutorial for basic usage. For detailed
-        instructions, please see
-        the <a href="http://brat.nlplab.org/manual.html" target="manual">brat
-        user manual</a>.</p>
-      <h3>Selecting a document</h3>
-      <p>After closing this tutorial, you will see the collection
-        browser, which allows you to access the different text
-        collections and individual documents in those collections on
-        your brat installation. Simply double-click on a collection
-        name to show its contents or on a document name to open it.
-      </p>
-      <p>You can later return to the collection browser by pressing the
-        TAB key or by clicking on &quot;Collection&quot; in the menu.
-      </p>
-      <h3>Visualization</h3>
-      <p>When a document is selected, the main window area shows a
-        visualization of the text and annotations of that
-        document. Placing the mouse cursor over an annotation shows
-        further information about that annotation.
-      </p>
-      <h3>Menu</h3>
-      <p>Placing the mouse cursor over the blue bar on top of the
-        window opens the tool menu. This provides access to the
-        following features:
-        <ul>
-          <li><b>Collection</b>: collection browser</li>
-          <li><b>Data</b>: export annotation data</li>
-          <li><b>Search</b>: search current document or collection</li>
-          <li><b>Options</b>: system configuration options</li>
-          <li><b>Login</b>: log in for editing</li>
-        </ul>
-      </p>
-      <h3>Basic editing</h3>
-      <p>When logged in (from the menu), it is possible to add
-        annotations for a text span simply by selecting that span with
-        the mouse, either by &quot;dragging&quot; over the text or by
-        double-clicking on a word.
-      </p>
-      <p>After selecting a span, the system shows the annotation dialog.
-        This allows the selection of the type to assign to the newly
-        created annotation, as well as the addition of comments or
-        setting additional aspects of the annotation.
-      </p>
-      <p>Associations between annotated text spans can be annotated by
-        &quot;dragging&quot; with the mouse from one annotation to the
-        other. This again brings up a dialog for selecting the type of
-        the annotation.
-      </p>
-      <p>Existing annotations can be modified or deleted from the same
-        annotation dialog, which can be brought up by double-clicking
-        on an annotation.
-      </p>
-      <p>(The available annotation types and other aspects depend on the
-        configuration of each collection.)
-      </p>
-      <h3>Advanced usage</h3>
-      <p>Please see the <a href="http://brat.nlplab.org/manual.html">brat user
-          manual</a> for more!
-      </p>
     </div>
   </body>
 </html>
