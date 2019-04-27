@@ -22,7 +22,6 @@ var VisualizerUI = (function($, window, undefined) {
       var mtime = null;
       var searchConfig = null;
       var coll, doc, args;
-      var pagingOffset = 0;
       var collScroll;
       var docScroll;
       var user = null;
@@ -36,11 +35,8 @@ var VisualizerUI = (function($, window, undefined) {
       var currentDocumentSVGsaved = false;
       var fileBrowserClosedWithSubmit = false;
 
-      // normalization:
+      // normalization: server-side DB by norm DB name
       var normServerDbByNormDbName = {};
-      var normInfoCache = {};
-      var normInfoCacheSize = 0;
-      var normInfoCacheMaxSize = 100;
 
       var matchFocus = '';
       var matches = '';
@@ -67,7 +63,7 @@ var VisualizerUI = (function($, window, undefined) {
         }, 2000);
         $('#source_files').hide();
       }
-      
+
       /* END "no svg" message - related */
 
       /* START collection browser sorting - related */
@@ -148,7 +144,7 @@ var VisualizerUI = (function($, window, undefined) {
             }
             catch(x) {
               escaped = msg[0].replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-              element = $('<div class="error"><b>[ERROR: could not display the following message normally due to malformed XML:]</b><br/>' + escaped + '</div>');
+              element = $('<div class="error"><b>[错误:由于格式错误的XML，无法正常显示以下消息:]</b><br/>' + escaped + '</div>');
             }
             var pullupElement = element.clone();
             $messageContainer.append(element);
@@ -231,12 +227,7 @@ var VisualizerUI = (function($, window, undefined) {
 
       /* START comment popup - related */
 
-      var cursor = { x: 0, y: 0 };
       var adjustToCursor = function(evt, element, offset, top, right) {
-        if (evt) {
-          cursor.x = evt.clientX;
-          cursor.y = evt.clientY;
-        }
         // get the real width, without wrapping
         element.css({ left: 0, top: 0 });
         var screenHeight = $(window).height();
@@ -247,18 +238,18 @@ var VisualizerUI = (function($, window, undefined) {
         var x, y;
         offset = offset || 0;
         if (top) {
-          y = cursor.y - elementHeight - offset;
+          y = evt.clientY - elementHeight - offset;
           if (y < 0) top = false;
         }
         if (!top) {
-          y = cursor.y + offset;
+          y = evt.clientY + offset;
         }
         if (right) {
-          x = cursor.x + offset;
+          x = evt.clientX + offset;
           if (x >= screenWidth - elementWidth) right = false;
         }
         if (!right) {
-          x = cursor.x - elementWidth - offset;
+          x = evt.clientX - elementWidth - offset;
         }
         if (y < 0) y = 0;
         if (x < 0) x = 0;
@@ -305,87 +296,8 @@ var VisualizerUI = (function($, window, undefined) {
         return Util.cmp(a[2],b[2]);
       }
 
-      var fillNormInfo = function(infoData, infoSeqId) {
-        // extend comment popup with normalization data
-        var norminfo = '';
-        // flatten outer (name, attr, info) array (idx for sort)
-        var infos = [];
-        var idx = 0;
-        for (var i = 0; i < infoData.length; i++) {
-          for (var j = 0; j < infoData[i].length; j++) {
-            var label = infoData[i][j][0];
-            var value = infoData[i][j][1];
-            infos.push([label, value, idx++]);
-          }
-        }
-        // sort, prioritizing images (to get floats right)
-        infos = infos.sort(normInfoSortFunction);
-        // combine several consequtive values with the same label
-        var combined = [];
-        var prev_label = '';
-        for (var i = 0; i < infos.length; i++) {
-          var label = infos[i][0];
-          var value = infos[i][1];
-          if (label == prev_label) {
-            combined[combined.length-1][1] += ', '+value;
-          } else {
-            combined.push([label, value]);
-          }
-          prev_label = label;
-        }
-        infos = combined;
-        // generate HTML
-        for (var i = 0; i < infos.length; i++) {
-          var label = infos[i][0];
-          var value = infos[i][1];
-          if (label && value) {
-            // special treatment for some label values
-            if (label.toLowerCase() == '<img>') {
-              norminfo += ('<img class="norm_info_img" src="'+
-                           Util.escapeHTML(value)+
-                           '"/>');
-            } else {
-              // normal, as text
-
-              // max length restriction
-              if (value.length > 300) {
-                value = value.substr(0, 300) + ' ...';
-              }                          
-
-              norminfo += ('<span class="norm_info_label">'+
-                           Util.escapeHTML(label)+
-                           '</span>'+
-                           '<span class="norm_info_value">'+':'+
-                           Util.escapeHTML(value)+
-                           '</span>'+
-                           '<br/>');
-            }
-          }
-        }
-        var drop=$('#norm_info_drop_point_'+infoSeqId);
-        if (drop) {
-          drop.html(norminfo);
-          adjustToCursor(null, commentPopup, 10, true, true);
-        } else {
-          console.log('norm info drop point not found!'); //TODO XXX
-        }
-      }
-
-      var normCacheGet = function(dbName, dbKey, value) {
-        return normInfoCache[dbName+':'+dbKey];
-      }
-      var normCachePut = function(dbName, dbKey, value) {
-        // TODO: non-stupid cache max size limit
-        if (normInfoCacheSize >= normInfoCacheMaxSize) {
-          normInfoCache = {};
-          normInfoCacheSize = 0;
-        }
-        normInfoCache[dbName+':'+dbKey] = value;
-        normInfoCacheSize++;
-      }
-
       var displaySpanComment = function(
-          evt, target, spanId, spanType, mods, spanText, commentText, 
+          evt, target, spanId, spanType, mods, spanText, commentText,
           commentType, normalizations) {
 
         var immediately = false;
@@ -403,8 +315,8 @@ var VisualizerUI = (function($, window, undefined) {
         }
 
         comment += '</div>';
-        comment += ('<div class="comment_text">"' + 
-                    Util.escapeHTML(spanText) + 
+        comment += ('<div class="comment_text">"' +
+                    Util.escapeHTML(spanText) +
                     '"</div>');
         var validArcTypesForDrag = dispatcher.post('getValidArcTypesForDrag', [spanId, spanType]);
         if (validArcTypesForDrag && validArcTypesForDrag[0]) {
@@ -441,35 +353,77 @@ var VisualizerUI = (function($, window, undefined) {
           }
         });
 
-        // display initial comment HTML 
-        displayComment(evt, target, comment, commentText, commentType, 
+        // display initial comment HTML
+        displayComment(evt, target, comment, commentText, commentType,
                        immediately);
 
         // initiate AJAX calls for the normalization data to query
         $.each(normsToQuery, function(normqNo, normq) {
           // TODO: cache some number of most recent norm_get_data results
           var dbName = normq[0], dbKey = normq[1], infoSeqId = normq[2];
-          
-          if (normCacheGet(dbName, dbKey)) {
-            fillNormInfo(normCacheGet(dbName, dbKey), infoSeqId);
-          } else {
-            dispatcher.post('ajax', [{
-              action: 'normData',
-              database: dbName,
-              key: dbKey,
-              collection: coll,
-            },
-            function(response) {
-              if (response.exception) {
-                ; // TODO: response to error
-              } else if (!response.value) {
-                ; // TODO: response to missing key
-              } else {
-                fillNormInfo(response.value, infoSeqId);
-                normCachePut(dbName, dbKey, response.value);
+          dispatcher.post('ajax', [{
+            action: 'normData',
+            database: dbName,
+            key: dbKey,
+            collection: coll,
+          },
+          function(response) {
+            if (response.exception) {
+              ; // TODO: response to error
+            } else if (!response.value) {
+              ; // TODO: response to missing key
+            } else {
+              // extend comment popup with normalization data
+              norminfo = '';
+              // flatten outer (name, attr, info) array (idx for sort)
+              infos = [];
+              var idx = 0;
+              for (var i = 0; i < response.value.length; i++) {
+                for (var j = 0; j < response.value[i].length; j++) {
+                  var label = response.value[i][j][0];
+                  var value = response.value[i][j][1];
+                  infos.push([label, value, idx++]);
+                }
               }
-            }]);
-          }
+              // sort, prioritizing images (to get floats right)
+              infos = infos.sort(normInfoSortFunction);
+              // generate HTML
+              for (var i = 0; i < infos.length; i++) {
+                var label = infos[i][0];
+                var value = infos[i][1];
+                if (label && value) {
+                  // special treatment for some label values
+                  if (label.toLowerCase() == '<img>') {
+                    // image
+                    norminfo += ('<img class="norm_info_img" src="'+
+                                 value+
+                                 '"/>');
+                  } else {
+                    // normal, as text
+
+                    // max length restriction
+                    if (value.length > 300) {
+                      value = value.substr(0, 300) + ' ...';
+                    }
+
+                    norminfo += ('<span class="norm_info_label">'+
+                                 Util.escapeHTML(label)+
+                                 '</span>'+
+                                 '<span class="norm_info_value">'+':'+
+                                 Util.escapeHTML(value)+
+                                 '</span>'+
+                                 '<br/>');
+                  }
+                }
+              }
+              var drop=$('#norm_info_drop_point_'+infoSeqId);
+              if (drop) {
+                drop.html(norminfo);
+              } else {
+                console.log('norm info drop point not found!'); //TODO XXX
+              }
+            }
+          }]);
         });
       };
 
@@ -480,14 +434,14 @@ var VisualizerUI = (function($, window, undefined) {
 
       var displayArcComment = function(
           evt, target, symmetric, arcId,
-          originSpanId, originSpanType, role, 
+          originSpanId, originSpanType, role,
           targetSpanId, targetSpanType,
           commentText, commentType) {
         var arcRole = target.attr('data-arc-role');
         // in arrowStr, &#8212 == mdash, &#8594 == Unicode right arrow
         var arrowStr = symmetric ? '&#8212;' : '&#8594;';
-        var arcDisplayForm = Util.arcDisplayForm(spanTypes, 
-                                                 data.spans[originSpanId].type, 
+        var arcDisplayForm = Util.arcDisplayForm(spanTypes,
+                                                 data.spans[originSpanId].type,
                                                  arcRole,
                                                  relationTypesHash);
         var comment = "";
@@ -502,13 +456,13 @@ var VisualizerUI = (function($, window, undefined) {
                                                          targetSpanType)) +
                     '</span>' +
                     '<span class="comment_id">' +
-                    (arcId ? 'ID:'+arcId : 
+                    (arcId ? 'ID:'+arcId :
                      Util.escapeHTML(originSpanId) +
-                     arrowStr + 
+                     arrowStr +
                      Util.escapeHTML(targetSpanId)) +
                     '</span>' +
                     '</span>');
-        comment += ('<div class="comment_text">' + 
+        comment += ('<div class="comment_text">' +
                     Util.escapeHTML('"'+data.spans[originSpanId].text+'"') +
                     arrowStr +
                     Util.escapeHTML('"'+data.spans[targetSpanId].text + '"') +
@@ -593,40 +547,12 @@ var VisualizerUI = (function($, window, undefined) {
         }
       };
 
-      var unsafeDialogOpen = function($dialog) {
-        // does not restrict tab key to the dialog
-        // does not set the focus, nor change position
-        // but is much faster than dialog('open') for large dialogs, see
-        // https://github.com/nlplab/brat/issues/934
-
-        var self = $dialog.dialog('instance');
-        
-        if (self._isOpen) { return; }
-
-        self._isOpen = true;
-        self.opener = $(self.document[0].activeElement);
-
-        self._size();
-        self._createOverlay();
-        self._moveToTop(null, true);
-
-        if (self.overlay) {
-          self.overlay.css( "z-index", self.uiDialog.css( "z-index" ) - 1 );
-        }
-        self._show(self.uiDialog, self.options.show);
-        self._trigger('open');
-      };
-
-      var showForm = function(form, unsafe) {
+      var showForm = function(form) {
         currentForm = form;
         // as suggested in http://stackoverflow.com/questions/2657076/jquery-ui-dialog-fixed-positioning
         form.parent().css({position:"fixed"});
-        if (unsafe) {
-          unsafeDialogOpen(form);
-        } else {
-          form.dialog('open');
-        }
-        slideToggle($('#pulldown').stop(), false);
+        form.dialog('open');
+        // slideToggle($('#pulldown').stop(), false);
         return form;
       };
 
@@ -721,7 +647,7 @@ var VisualizerUI = (function($, window, undefined) {
           // ..
           var pos = coll.substr(0, coll.length - 1).lastIndexOf('/');
           if (pos === -1) {
-            dispatcher.post('messages', [[['At the root', 'error', 2]]]);
+            dispatcher.post('messages', [[['在根目录', 'error', 2]]]);
             $('#document_input').focus().select();
             return false;
           } else {
@@ -742,14 +668,14 @@ var VisualizerUI = (function($, window, undefined) {
             _doc = docname;
           }
         } else {
-          dispatcher.post('messages', [[['Invalid document name format', 'error', 2]]]);
+          dispatcher.post('messages', [[['无效文档名格式', 'error', 2]]]);
           $('#document_input').focus().select();
         }
         docScroll = $('#document_select')[0].scrollTop;
         fileBrowser.find('#document_select tbody').empty();
 
         if (coll != _coll || doc != _doc ||
-            !Util.isEqual(Util.paramArray(args.matchfocus), (matchFocus || []))) {
+            Util.paramArray(args.matchfocus) != matchFocus) {
           // something changed
 
           // set to allow keeping "blind" down during reload
@@ -779,6 +705,7 @@ var VisualizerUI = (function($, window, undefined) {
           bind('reset', hideForm);
 
       var fileBrowserWaiting = false;
+      // 显示文件列表情况
       var showFileBrowser = function() {
         // keep tabs on how the browser is closed; we need to keep the
         // "blind" up when retrieving a collection, but not when canceling
@@ -814,11 +741,15 @@ var VisualizerUI = (function($, window, undefined) {
         // the following commented-out line (and this comment):
         //selectorData.items.sort(docSortFunction);
         $.each(selectorData.items, function(docNo, doc) {
+          // selectorData.items 为具体的数据
+          console.log(selectorData.items);
           var isColl = doc[0] == "c"; // "collection"
           // second column is optional annotation-specific pointer,
           // used (at least) for search results
           var annp = doc[1] ? ('?' + Util.escapeHTML(Util.param(doc[1]))) : '';
           var name = Util.escapeHTML(doc[2]);
+          // 获取文件名
+          console.log(name);
           var collFile = isColl ? 'collection' : 'file';
           //var collFileImg = isColl ? 'ic_list_folder.png' : 'ic_list_drafts.png';
           //var collFileImg = isColl ? 'Fugue-folder-horizontal-open.png' : 'Fugue-document.png';
@@ -837,6 +768,8 @@ var VisualizerUI = (function($, window, undefined) {
             + name + collSuffix + '"' + matchstr + mfstr + '>');
           html.push('<th><img src="static/img/' + collFileImg + '" alt="' + collFile + '"/></th>');
           html.push('<th>' + name + collSuffix + '</th>');
+          console.log("表格数据");
+          console.log(name, collSuffix);
           var len = selectorData.header.length - 1;
           for (var i = 0; i < len; i++) {
             var type = selectorData.header[i + 1][1];
@@ -869,7 +802,7 @@ var VisualizerUI = (function($, window, undefined) {
             if (formatted === null) {
               var m = type.match(/^(.*?)(?:\/(right))?$/);
               cssClass = m[2] ? 'rightalign' : null;
-              formatted = sprintf(m[1], datum);
+              formatted = $.sprintf(m[1], datum);
             }
             html.push('<td' + (cssClass ? ' class="' + cssClass + '"' : '') + '>' +
                 formatted + '</td>');
@@ -891,7 +824,7 @@ var VisualizerUI = (function($, window, undefined) {
         $('#document_input').val(doc);
 
         $('#readme').val(selectorData.description || '');
-        if (selectorData.description && 
+        if (selectorData.description &&
             (selectorData.description.match(/\n/) ||
              selectorData.description.length > 50)) {
           // multi-line or long description; show "more" button and fill
@@ -913,6 +846,7 @@ var VisualizerUI = (function($, window, undefined) {
           $('#document_input').focus().select();
         }, 0);
       }; // end showFileBrowser()
+      // 处理数据集的打开关闭。
       $('#collection_browser_button').click(function(evt) {
         dispatcher.post('clearSearch');
       });
@@ -1012,7 +946,7 @@ var VisualizerUI = (function($, window, undefined) {
         };
       };
 
-      $('#search_form_event_roles').on('change', '.search_event_role select', searchEventRoleChanged);
+      $('#search_form_event_roles .search_event_role select').live('change', searchEventRoleChanged);
 
       // adding new role rows
       var addEmptySearchEventRole = function() {
@@ -1056,8 +990,8 @@ var VisualizerUI = (function($, window, undefined) {
         $row.remove();
       }
 
-      $('#search_form_event_roles').on('click', '.search_event_role_add input', addEmptySearchEventRole);
-      $('#search_form_event_roles').on('click', '.search_event_role_del input', delSearchEventRole);
+      $('#search_form_event_roles .search_event_role_add input').live('click', addEmptySearchEventRole);
+      $('#search_form_event_roles .search_event_role_del input').live('click', delSearchEventRole);
 
       // When event type changes, the event roles do as well
       // Also, put in one empty role row
@@ -1154,10 +1088,10 @@ var VisualizerUI = (function($, window, undefined) {
       $('#advanced_search_option_toggle').click(function(evt) {
         if (advancedSearchOptionsVisible) {
           $('#search_options div.advancedOptions').hide("highlight");
-          $('#advanced_search_option_toggle').text("Show advanced");
+          $('#advanced_search_option_toggle').text("显示高级选项");
         } else {
           $('#search_options div.advancedOptions').show("highlight");
-          $('#advanced_search_option_toggle').text("Hide advanced");
+          $('#advanced_search_option_toggle').text("隐藏高级选项");
         }
         advancedSearchOptionsVisible = !advancedSearchOptionsVisible;
         // block default
@@ -1166,7 +1100,7 @@ var VisualizerUI = (function($, window, undefined) {
 
       var activeSearchTab = function() {
         // activeTab: 0 = Text, 1 = Entity, 2 = Event, 3 = Relation, 4 = Notes, 5 = Load
-        var activeTab = $('#search_tabs').tabs('option', 'active');
+        var activeTab = $('#search_tabs').tabs('option', 'selected');
         return ['searchText', 'searchEntity', 'searchEvent',
             'searchRelation', 'searchNote', 'searchLoad'][activeTab];
       }
@@ -1229,7 +1163,7 @@ var VisualizerUI = (function($, window, undefined) {
           case 'searchText':
             opts.text = $('#search_form_text_text').val();
             if (!opts.text.length) {
-              dispatcher.post('messages', [[['Please fill in the text to search for!', 'comment']]]);
+              dispatcher.post('messages', [[['请填写要搜索的文本!', 'comment']]]);
               return false;
             }
             break;
@@ -1256,8 +1190,6 @@ var VisualizerUI = (function($, window, undefined) {
             opts.arg1type = $('#search_form_relation_arg1_type').val() || '';
             opts.arg2 = $('#search_form_relation_arg2_text').val();
             opts.arg2type = $('#search_form_relation_arg2_type').val() || '';
-            opts.show_text = $('#search_form_relation_show_arg_text_on').is(':checked');
-            opts.show_type = $('#search_form_relation_show_arg_type_on').is(':checked');
             break;
           case 'searchNote':
             opts.category = $('#search_form_note_category').val() || '';
@@ -1293,7 +1225,7 @@ var VisualizerUI = (function($, window, undefined) {
           if(response && response.items && response.items.length == 0) {
             // TODO: might consider having this message come from the
             // server instead
-            dispatcher.post('messages', [[['No matches to search.', 'comment']]]);
+            dispatcher.post('messages', [[['没有匹配项可搜索.', 'comment']]]);
             dispatcher.post('clearSearch', [true]);
           } else {
             applySearchResults(response);
@@ -1307,7 +1239,7 @@ var VisualizerUI = (function($, window, undefined) {
         var file = $file[0].files[0];
         var reader = new FileReader();
         reader.onerror = function(evt) {
-          dispatcher.post('messages', [[['The file could not be read.', 'error']]]);
+          dispatcher.post('messages', [[['该文件不可读.', 'error']]]);
         };
         reader.onloadend = function(evt) {
           try {
@@ -1315,7 +1247,7 @@ var VisualizerUI = (function($, window, undefined) {
             // TODO XXX check for validity of contents, not just whether
             // it's valid JSON or not; throw something if not
           } catch (x) {
-            dispatcher.post('messages', [[['The file contains invalid data.', 'error']]]);
+            dispatcher.post('messages', [[['该文件包含无效数据.', 'error']]]);
             return;
           }
         };
@@ -1332,7 +1264,7 @@ var VisualizerUI = (function($, window, undefined) {
             keymap = {};
           },
       });
-      $('#search_form_clear').attr('title', 'Clear the search and resume normal collection browsing');
+      $('#search_form_clear').attr('title', '清除搜索并恢复正常的数据集浏览');
 
       var showSearchForm = function() {
         // this.checked = searchActive; // TODO: dup? unnecessary? remove if yes.
@@ -1443,7 +1375,7 @@ var VisualizerUI = (function($, window, undefined) {
         dispatcher.post('showForm', [optionsForm]);
       });
       // make nice-looking buttons for checkboxes and radios
-      $('#options_form').find('input[type="checkbox"], input[type="button"]').button();
+      $('#options_form').find('input[type="checkbox"]').button();
       $('#options_form').find('.radio_group').buttonset();
       $('#rapid_model').addClass('ui-widget ui-state-default ui-button-text');
 
@@ -1498,14 +1430,14 @@ var VisualizerUI = (function($, window, undefined) {
             // NOTE: spec seems to require this to be upper-case,
             // but at least chrome 8.0.552.215 returns lowercased
             var nodeType = evt.target.type ? evt.target.type.toLowerCase() : '';
-            if (evt.target.nodeName && 
-                evt.target.nodeName.toLowerCase() == 'input' && 
-                (nodeType == 'text' || 
+            if (evt.target.nodeName &&
+                evt.target.nodeName.toLowerCase() == 'input' &&
+                (nodeType == 'text' ||
                  nodeType == 'password')) {
               currentForm.trigger('submit');
               return false;
             }
-          } else if ((Util.isMac ? evt.metaKey : evt.ctrlKey) &&
+          } else if (evt.ctrlKey &&
                 (code == 'F'.charCodeAt(0) || code == 'G'.charCodeAt(0))) {
             // prevent Ctrl-F/Ctrl-G in forms
             evt.preventDefault();
@@ -1517,28 +1449,21 @@ var VisualizerUI = (function($, window, undefined) {
         if (code === $.ui.keyCode.TAB) {
           showFileBrowser();
           return false;
-        } else if (evt.shiftKey && code === $.ui.keyCode.RIGHT) {
-          autoPaging(true);
-        } else if (evt.shiftKey && code === $.ui.keyCode.LEFT) {
-          autoPaging(false);
-        } else if (evt.shiftKey && code === $.ui.keyCode.UP) {
-          pagingOffset -= Configuration.pagingStep;
-          if (pagingOffset < 0) pagingOffset = 0;
-          dispatcher.post('setPagingOffset', [pagingOffset, true]);
-        } else if (evt.shiftKey && code === $.ui.keyCode.DOWN) {
-          pagingOffset += Configuration.pagingStep;
-          dispatcher.post('setPagingOffset', [pagingOffset, true]);
         } else if (code == $.ui.keyCode.LEFT) {
           return moveInFileBrowser(-1);
         } else if (code === $.ui.keyCode.RIGHT) {
           return moveInFileBrowser(+1);
-        } else if ((Util.isMac ? evt.metaKey : evt.ctrlKey) && code == 'F'.charCodeAt(0)) {
+        } else if (evt.shiftKey && code === $.ui.keyCode.UP) {
+          autoPaging(true);
+        } else if (evt.shiftKey && code === $.ui.keyCode.DOWN) {
+          autoPaging(false);
+        } else if (evt.ctrlKey && code == 'F'.charCodeAt(0)) {
           evt.preventDefault();
           showSearchForm();
-        } else if (searchActive && (Util.isMac ? evt.metaKey : evt.ctrlKey) && code == 'G'.charCodeAt(0)) {
+        } else if (searchActive && evt.ctrlKey && code == 'G'.charCodeAt(0)) {
           evt.preventDefault();
           return moveInFileBrowser(+1);
-        } else if (searchActive && (Util.isMac ? evt.metaKey : evt.ctrlKey) && code == 'K'.charCodeAt(0)) {
+        } else if (searchActive && evt.ctrlKey && code == 'K'.charCodeAt(0)) {
           evt.preventDefault();
           clearSearchResults();
         }
@@ -1556,8 +1481,8 @@ var VisualizerUI = (function($, window, undefined) {
         }
         return false;
       };
-     
-      /* Automatically proceed from document to document */ 
+
+      /* Automatically proceed from document to document */
       var autoPagingTimeout = null;
       var autoPaging = function(on) {
           clearTimeout(autoPagingTimeout);
@@ -1587,7 +1512,7 @@ var VisualizerUI = (function($, window, undefined) {
               // revert to last good
               dispatcher.post('setCollection', [lastGoodCollection]);
           } else {
-              dispatcher.post('messages', [[['Unknown error: ' + response.exception, 'error']]]);
+              dispatcher.post('messages', [[['未知错误: ' + response.exception, 'error']]]);
               dispatcher.post('setCollection', ['/']);
           }
         } else {
@@ -1638,7 +1563,7 @@ var VisualizerUI = (function($, window, undefined) {
         if (!dontShowFileBrowser) {
           showFileBrowser();
         }
-      }
+      };
 
       var saveSVGTimer = null;
       var saveSVG = function() {
@@ -1683,7 +1608,7 @@ var VisualizerUI = (function($, window, undefined) {
         $('#stored_file_spinner').hide()
 
         if (response && response.exception == 'corruptSVG') {
-          dispatcher.post('messages', [[['Cannot save SVG: corrupt', 'error']]]);
+          dispatcher.post('messages', [[['不能保存 SVG: 报错', 'error']]]);
           return;
         }
         var $downloadStored = $('#download_stored').empty().show();
@@ -1738,14 +1663,12 @@ var VisualizerUI = (function($, window, undefined) {
         if (mtime) {
           // we're getting seconds and need milliseconds
           //$('#document_ctime').text("Created: " + Annotator.formatTime(1000 * sourceData.ctime)).css("display", "inline");
-          $('#document_mtime').text("Last modified: " + Util.formatTimeAgo(1000 * mtime)).show();
+          $('#document_mtime').text("最近修改: " + Util.formatTimeAgo(1000 * mtime)).show();
         } else {
           //$('#document_ctime').css("display", "none");
           $('#document_mtime').hide();
         }
       }
-
-      $('#source_collection_conf').buttonset();
 
       var gotCurrent = function(_coll, _doc, _args) {
         var oldColl = coll;
@@ -1753,8 +1676,6 @@ var VisualizerUI = (function($, window, undefined) {
         coll = _coll;
         doc = _doc;
         args = _args;
-        if (!args.edited) pagingOffset = 0;
-        dispatcher.post('setPagingOffset', [pagingOffset]);
 
         // if we have a specific document, hide the "no document" message
         if (_doc) {
@@ -1766,9 +1687,8 @@ var VisualizerUI = (function($, window, undefined) {
         if (oldColl != coll) {
           var $sourceCollection = $('#source_collection').empty();
           var $collectionDownloadLink = $('<a target="brat_search"/>')
-            .text('Download tar.gz')
+            .text('下载 tar.gz')
             .attr('href', 'ajax.cgi?action=downloadCollection&collection=' + encodeURIComponent(coll)
-            + '&include_conf=' + ($('#source_collection_conf_on').is(':checked') ? 1 : 0)
             // TODO: Extract the protocol version into somewhere global
             + '&protocol=' + 1);
           $sourceCollection.append($collectionDownloadLink);
@@ -1776,12 +1696,12 @@ var VisualizerUI = (function($, window, undefined) {
 
           $cmpButton = $('#side-by-side_cmp').empty();
           var $cmpLink = $('<a target="_blank"/>')
-            .text('Comparison mode')
-            .attr('href', 'diff.xhtml#?diff=' + encodeURIComponent(coll));
+            .text('比较模式')
+            .attr('href', 'diff.xhtml?diff=' + encodeURIComponent(coll));
           $cmpButton.append($cmpLink);
           $cmpLink.button();
         }
-          
+
         $docName = $('#document_name input').val(coll + doc);
         var docName = $docName[0];
         // TODO do this on resize, as well
@@ -1840,25 +1760,25 @@ var VisualizerUI = (function($, window, undefined) {
       }
 
       var menuTimer = null;
-      $('#header').
-        mouseenter(function(evt) {
-          clearTimeout(menuTimer);
-          slideToggle($('#pulldown').stop(), true);
-        }).
-        mouseleave(function(evt) {
-          clearTimeout(menuTimer);
-          menuTimer = setTimeout(function() {
-            slideToggle($('#pulldown').stop(), false);
-          }, 500);
-        });
+      // $('#header').
+      //   mouseenter(function(evt) {
+      //     clearTimeout(menuTimer);
+      //     slideToggle($('#pulldown').stop(), true);
+      //   }).
+      //   mouseleave(function(evt) {
+      //     clearTimeout(menuTimer);
+      //     menuTimer = setTimeout(function() {
+      //       slideToggle($('#pulldown').stop(), false);
+      //     }, 500);
+      //   });
 
       $('#label_abbreviations input').click(function(evt) {
         var val = this.value;
         val = val === 'on';
         if (val) {
-          dispatcher.post('messages', [[['Abbreviations are now on', 'comment']]]);
+          dispatcher.post('messages', [[['缩略语现在已开启', 'comment']]]);
         } else {
-          dispatcher.post('messages', [[['Abbreviations are now off', 'comment']]]);
+          dispatcher.post('messages', [[['缩略语现在已关闭', 'comment']]]);
         }
         dispatcher.post('abbrevs', [val]);
         // TODO: XXX: for some insane reason, doing the following call
@@ -1898,8 +1818,8 @@ var VisualizerUI = (function($, window, undefined) {
         var val = this.value;
         dispatcher.post('annotationSpeed', [val]);
         return false;
-      });      
-    
+      });
+
       $('#pulldown').find('input').button();
       var headerHeight = $('#mainHeader').height();
       $('#svg').css('margin-top', headerHeight + 10);
@@ -1977,7 +1897,7 @@ var VisualizerUI = (function($, window, undefined) {
                 $('#auth_user').select().focus();
               } else {
                 user = _user;
-                $('#auth_button').val('Logout ' + user);
+                $('#auth_button').val('退出 ' + user);
                 $('#auth_user').val('');
                 $('#auth_pass').val('');
                 $('.login').show();
@@ -1992,7 +1912,7 @@ var VisualizerUI = (function($, window, undefined) {
             action: 'logout'
           }, function(response) {
             user = null;
-            $('#auth_button').val('Login');
+            $('#auth_button').val('登录');
             $('.login').hide();
             dispatcher.post('user', [null]);
           }]);
@@ -2004,8 +1924,7 @@ var VisualizerUI = (function($, window, undefined) {
 
 
       var tutorialForm = $('#tutorial');
-      var isWebkit = 'WebkitAppearance' in document.documentElement.style;
-      if (!isWebkit) {
+      if (!$.browser.webkit) {
         // Inject the browser warning
         $('#browserwarning').css('display', 'block');
       }
@@ -2027,23 +1946,25 @@ var VisualizerUI = (function($, window, undefined) {
       });
 
       var init = function() {
+        // dispatcher
         dispatcher.post('initForm', [viewspanForm, {
             width: 760,
             no_cancel: true
           }]);
+        // 判断登录用户操作....
         dispatcher.post('ajax', [{
             action: 'whoami'
           }, function(response) {
             var auth_button = $('#auth_button');
             if (response.user) {
               user = response.user;
-              dispatcher.post('messages', [[['Welcome back, user "' + user + '"', 'comment']]]);
-              auth_button.val('Logout ' + user);
+              dispatcher.post('messages', [[['欢迎回来, "' + user + '"', 'comment']]]);
+              auth_button.val('退出 ' + user);
               dispatcher.post('user', [user]);
               $('.login').show();
             } else {
               user = null;
-              auth_button.val('Login');
+              auth_button.val('登录');
               dispatcher.post('user', [null]);
               $('.login').hide();
               // don't show tutorial if there's a specific document (annoyance)
@@ -2063,7 +1984,7 @@ var VisualizerUI = (function($, window, undefined) {
             } catch(x) {
               // XXX Bad config
               Configuration = {};
-              dispatcher.post('messages', [[['Corrupted configuration; resetting.', 'error']]]);
+              dispatcher.post('messages', [[['错误配置; 重设.', 'error']]]);
               configurationChanged();
             }
             // TODO: make whole-object assignment work
@@ -2096,19 +2017,19 @@ var VisualizerUI = (function($, window, undefined) {
       }
 
       var showUnableToReadTextFile = function() {
-        dispatcher.post('messages', [[['Unable to read the text file.', 'error']]]);
+        dispatcher.post('messages', [[['不能读该文本文件.', 'error']]]);
         dispatcher.post('clearSVG');
         showFileBrowser();
       };
 
       var showAnnotationFileNotFound = function() {
-        dispatcher.post('messages', [[['Annotation file not found.', 'error']]]);
+        dispatcher.post('messages', [[['标注文件没有找到.', 'error']]]);
         dispatcher.post('clearSVG');
         showFileBrowser();
       };
 
       var showUnknownError = function(exception) {
-        dispatcher.post('messages', [[['Unknown error: ' + exception, 'error']]]);
+        dispatcher.post('messages', [[['未知错误: ' + exception, 'error']]]);
         dispatcher.post('clearSVG');
         showFileBrowser();
       };
@@ -2206,32 +2127,12 @@ var VisualizerUI = (function($, window, undefined) {
         if (val) {
           Configuration.autorefreshOn = true;
           checkForDocumentChanges();
-          dispatcher.post('messages', [[['Autorefresh mode is now on', 'comment']]]);
+          dispatcher.post('messages', [[['自动刷新模式现在是打开的', 'comment']]]);
         } else {
           Configuration.autorefreshOn = false;
           clearTimeout(documentChangesTimer);
-          dispatcher.post('messages', [[['Autorefresh mode is now off', 'comment']]]);
+          dispatcher.post('messages', [[['自动刷新模式现在是关闭的', 'comment']]]);
         }
-        dispatcher.post('configurationChanged');
-      });
-
-      $('#type_collapse_limit').change(function(evt) {
-        Configuration.typeCollapseLimit = parseInt($(this).val(), 10) || 0;
-        dispatcher.post('configurationChanged');
-      });
-
-      $('#paging_size').change(function(evt) {
-        Configuration.pagingSize = parseInt($(this).val(), 10) || 0;
-        dispatcher.post('configurationChanged');
-      });
-      $('#paging_step').change(function(evt) {
-        Configuration.pagingStep = parseInt($(this).val(), 10) || 0;
-        dispatcher.post('configurationChanged');
-      });
-      $('#paging_clear').click(function(evt) {
-        Configuration.pagingSize = 0;
-        Configuration.pagingStep = 0;
-        $('#paging_step, #paging_size').val('');
         dispatcher.post('configurationChanged');
       });
 
@@ -2255,7 +2156,7 @@ var VisualizerUI = (function($, window, undefined) {
 
       var updateConfigurationUI = function() {
         // update UI to reflect non-user config changes (e.g. load)
-        
+
         // Annotation mode
         if (Configuration.confirmModeOn) {
           $('#annotation_speed1')[0].checked = true;
@@ -2268,10 +2169,10 @@ var VisualizerUI = (function($, window, undefined) {
 
         // Label abbrevs
         $('#label_abbreviations_on')[0].checked  = Configuration.abbrevsOn;
-        $('#label_abbreviations_off')[0].checked = !Configuration.abbrevsOn; 
+        $('#label_abbreviations_off')[0].checked = !Configuration.abbrevsOn;
         $('#label_abbreviations input').button('refresh');
 
-        // Text backgrounds        
+        // Text backgrounds
         $('#text_backgrounds input[value="'+Configuration.textBackgrounds+'"]')[0].checked = true;
         $('#text_backgrounds input').button('refresh');
 
@@ -2279,7 +2180,7 @@ var VisualizerUI = (function($, window, undefined) {
         var splitSvgWidth = Configuration.svgWidth.match(/^(.*?)(px|\%)$/);
         if (!splitSvgWidth) {
           // TODO: reset to sensible value?
-          dispatcher.post('messages', [[['Error parsing SVG width "'+Configuration.svgWidth+'"', 'error', 2]]]);
+          dispatcher.post('messages', [[['解析SVG宽度错误 "'+Configuration.svgWidth+'"', 'error', 2]]]);
         } else {
           $('#svg_width_value')[0].value = splitSvgWidth[1];
           $('#svg_width_unit input[value="'+splitSvgWidth[2]+'"]')[0].checked = true;
@@ -2289,13 +2190,6 @@ var VisualizerUI = (function($, window, undefined) {
         // Autorefresh
         $('#autorefresh_mode')[0].checked = Configuration.autorefreshOn;
         $('#autorefresh_mode').button('refresh');
-
-        // Type Collapse Limit
-        $('#type_collapse_limit')[0].value = Configuration.typeCollapseLimit;
-
-        // Paging
-        $('#paging_size')[0].value = Configuration.pagingSize || '';
-        $('#paging_step')[0].value = Configuration.pagingStep || '';
       }
 
       $('#prev').button().click(function() {
@@ -2305,14 +2199,6 @@ var VisualizerUI = (function($, window, undefined) {
         return moveInFileBrowser(+1);
       });
       $('#footer').show();
-
-      $('#source_collection_conf_on, #source_collection_conf_off').change(function() {
-        var conf = $('#source_collection_conf_on').is(':checked') ? 1 : 0;
-        var $source_collection_link = $('#source_collection a');
-        var link = $source_collection_link.attr('href').replace(/&include_conf=./, '&include_conf=' + conf);
-        $source_collection_link.attr('href', link);
-      });
-
 
       var rememberData = function(_data) {
         if (_data && !_data.exception) {

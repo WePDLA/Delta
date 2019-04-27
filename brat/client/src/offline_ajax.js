@@ -40,6 +40,7 @@ var OfflineAjax = (function($, window, undefined) {
             // an action that is not a visualisation action got through
             alert("DEBUG TODO XXX UNSUPPORTED ALERT WHATNOW ETC: " + data.action); // XXX
         }
+        console.log("打印数据信息...")
 
         // load the file
         // NOTE: beware, there is no error checking possible in this

@@ -12,7 +12,6 @@ var AnnotatorUI = (function($, window, undefined) {
       var data = null;
       var searchConfig = null;
       var spanOptions = null;
-      var lockOptions = null;
       var rapidSpanOptions = null;
       var arcOptions = null;
       var spanKeymap = null;
@@ -27,6 +26,7 @@ var AnnotatorUI = (function($, window, undefined) {
       var spanTypes = null;
       var entityAttributeTypes = null;
       var eventAttributeTypes = null;
+      var allAttributeTypes = null; // TODO: temp workaround, remove
       var relationTypesHash = null;
       var showValidAttributes; // callback function
       var showValidNormalizations; // callback function
@@ -34,10 +34,9 @@ var AnnotatorUI = (function($, window, undefined) {
       var selRect = null;
       var lastStartRec = null;
       var lastEndRec = null;
-      var inForm = false;
-      var normalizations = {};
 
       var draggedArcHeight = 30;
+      var spanTypesToShowBeforeCollapse = 30;
       var maxNormSearchHistory = 10;
 
       // TODO: this is an ugly hack, remove (see comment with assignment)
@@ -66,26 +65,18 @@ var AnnotatorUI = (function($, window, undefined) {
       var svgElement = $(svg._svg);
       var svgId = svgElement.parent().attr('id');
 
-      var arcTargets = [];
-      var arcTargetRects;
-
       var stripNumericSuffix = function(s) {
         // utility function, originally for stripping numerix suffixes
         // from arc types (e.g. "Theme2" -> "Theme"). For values
         // without suffixes (including non-strings), returns given value.
-        if (typeof(s) != "string") {          
+        if (typeof(s) != "string") {
           return s; // can't strip
         }
         var m = s.match(/^(.*?)(\d*)$/);
         return m[1]; // always matches
       }
 
-      var showForm = function() {
-        inForm = true;
-      };
-
       var hideForm = function() {
-        inForm = false;
         keymap = null;
         rapidAnnotationDialogVisible = false;
       };
@@ -116,9 +107,7 @@ var AnnotatorUI = (function($, window, undefined) {
         var code = evt.which;
 
         if (code === $.ui.keyCode.ESCAPE) {
-          setTypeLock(false);
           stopArcDrag();
-          hideForm();
           if (reselectedSpan) {
             $(reselectedSpan.rect).removeClass('reselect');
             reselectedSpan = null;
@@ -129,7 +118,7 @@ var AnnotatorUI = (function($, window, undefined) {
 
         // in rapid annotation mode, prioritize the keys 0..9 for the
         // ordered choices in the quick annotation dialog.
-        if (Configuration.rapidModeOn && rapidAnnotationDialogVisible && 
+        if (Configuration.rapidModeOn && rapidAnnotationDialogVisible &&
             "0".charCodeAt() <= code && code <= "9".charCodeAt()) {
           var idx = String.fromCharCode(code);
           var $input = $('#rapid_span_'+idx);
@@ -138,12 +127,7 @@ var AnnotatorUI = (function($, window, undefined) {
           }
         }
 
-        if (!inForm && code == $.ui.keyCode.ENTER) {
-          evt.preventDefault();
-          tryToAnnotate(evt);
-          return;
-        }
-
+        if (!keymap) return;
 
         // disable shortcuts when working with elements that you could
         // conceivably type in
@@ -154,73 +138,17 @@ var AnnotatorUI = (function($, window, undefined) {
         if (nodeName == 'textarea' || nodeName == 'select') return;
 
         var prefix = '';
-        if (Util.isMac ? evt.metaKey : evt.ctrlKey) {
-          prefix += "C-";
-        }
         if (evt.altKey) {
-          prefix += "A-";
+          prefix = "A-";
+        }
+        if (evt.ctrlKey) {
+          prefix = "C-";
         }
         if (evt.shiftKey) {
-          prefix += "S-";
+          prefix = "S-";
         }
-        var key = String.fromCharCode(code);
-
-        // repeat last action on the match focus (the current search result)
-        if (prefix + key == 'C-H') {
-          if (args.matchfocus) {
-            var valency = args.matchfocus[0].length;
-            if (valency == 2) { // text offsets
-              if (spanOptions) { // previous span edit exists
-                if (spanOptions.action == 'createSpan' && !spanOptions.id) {
-                  // new
-                  spanOptions.offsets = args.matchfocus;
-                  spanFormSubmit();
-                  dispatcher.post('logAction', ['spanSearchCreated']);
-                } else {
-                  // edit
-                  var spanId = Object.keys(data.spans).find(function(spanId) {
-                    return Util.isEqual(data.spans[spanId].offsets, args.matchfocus);
-                  });
-                  if (spanId) {
-                    spanOptions.id = spanId;
-                    var span = data.spans[spanId];
-                    if (spanOptions.action == 'deleteSpan') {
-                      spanOptions.type = span.type;
-                      deleteSpan();
-                      dispatcher.post('logAction', ['spanSearchDeleted']);
-                    } else if (spanOptions.action == 'createSpan') {
-                      // modify: type, attributes, normalizations, comment
-                      spanOptions.offsets = span.offsets;
-                      spanFormSubmit();
-                      dispatcher.post('logAction', ['spanSearchModified']);
-                    } else {
-                      //TODO
-                      console.log("Not implemented yet");
-                    }
-                  }
-                }
-              } else { // no previous span edit, so bring up the dialog
-                var spanText = data.text.substring(args.matchfocus[0][0], args.matchfocus[0][1]);
-                spanOptions = {
-                  action: 'createSpan',
-                  offsets: args.matchfocus
-                }
-                fillSpanTypesAndDisplayForm(evt, spanText, null);
-                // for precise timing, log annotation display to user.
-                dispatcher.post('logAction', ['spanSearchSelected']);
-              }
-            } else if (valency == 1) { // span ID
-              let spanId = args.matchfocus[0][0];
-            } else if (valency == 3) { // relationship; XXX TODO not sure what to do with this
-            }
-          }
-          evt.preventDefault();
-          return false;
-        }
-
-        if (!keymap) return;
-
-        var binding = keymap[prefix + code] || keymap[prefix + key];
+        var binding = keymap[prefix + code];
+        if (!binding) binding = keymap[prefix + String.fromCharCode(code)];
         if (binding) {
           var boundInput = $('#' + binding)[0];
           if (boundInput && !boundInput.disabled) {
@@ -262,14 +190,10 @@ var AnnotatorUI = (function($, window, undefined) {
           var eventDescId = target.attr('data-arc-ed');
           if (eventDescId) {
             var eventDesc = data.eventDescs[eventDescId];
-            arcOptions.id = eventDescId;
-            arcOptions.comment = eventDesc.comment && eventDesc.comment.text;
             if (eventDesc.equiv) {
               arcOptions['left'] = eventDesc.leftSpans.join(',');
               arcOptions['right'] = eventDesc.rightSpans.join(',');
             }
-          } else {
-            arcOptions.id = originSpanId + "~" + type + "~" + targetSpanId;
           }
           $('#arc_origin').text(Util.spanDisplayForm(spanTypes, originSpan.type) + ' ("' + originSpan.text + '")');
           $('#arc_target').text(Util.spanDisplayForm(spanTypes, targetSpan.type) + ' ("' + targetSpan.text + '")');
@@ -283,22 +207,19 @@ var AnnotatorUI = (function($, window, undefined) {
           clearSelection();
           editedSpan = data.spans[id];
           editedFragment = target.attr('data-fragment-id');
-          // XXX we went from collecting fragment offsets to copying
-          // them from data. Does anything break?
+          var offsets = [];
+          $.each(editedSpan.fragments, function(fragmentNo, fragment) {
+            offsets.push([fragment.from, fragment.to]);
+          });
           spanOptions = {
             action: 'createSpan',
-            offsets: editedSpan.unsegmentedOffsets,
+            offsets: offsets,
             type: editedSpan.type,
             id: id,
           };
-          if (lockOptions) {
-            spanFormSubmit();
-            dispatcher.post('logAction', ['spanLockEditSubmitted']);
-          } else {
-            fillSpanTypesAndDisplayForm(evt, editedSpan.text, editedSpan);
-            // for precise timing, log annotation display to user.
-            dispatcher.post('logAction', ['spanEditSelected']);
-          }
+          fillSpanTypesAndDisplayForm(evt, editedSpan.text, editedSpan);
+          // for precise timing, log annotation display to user.
+          dispatcher.post('logAction', ['spanEditSelected']);
         }
 
         // if not an arc or a span, is this a double-click on text?
@@ -311,23 +232,19 @@ var AnnotatorUI = (function($, window, undefined) {
       };
 
       var startArcDrag = function(originId) {
-        if (reselectedSpan) return;
         clearSelection();
-        svgPosition = svgElement.offset();
         svgElement.addClass('unselectable');
+        svgPosition = svgElement.offset();
         arcDragOrigin = originId;
+        arcDragArc = svg.path(svg.createPath(), {
+          markerEnd: 'url(#drag_arrow)',
+          'class': 'drag_stroke',
+          fill: 'none',
+        });
         arcDragOriginGroup = $(data.spans[arcDragOrigin].group);
         arcDragOriginGroup.addClass('highlight');
-        var headFragment = data.spans[arcDragOrigin].headFragment;
-        var chunk = headFragment.chunk;
-        var fragBox = headFragment.rectBox;
-        arcDragOriginBox = {
-            x: fragBox.x + chunk.translation.x,
-            y: fragBox.y + chunk.row.translation.y,
-            height: fragBox.height,
-            width: fragBox.width,
-            center: fragBox.x + chunk.translation.x + fragBox.width / 2,
-          };
+        arcDragOriginBox = Util.realBBox(data.spans[arcDragOrigin].headFragment);
+        arcDragOriginBox.center = arcDragOriginBox.x + arcDragOriginBox.width / 2;
 
         arcDragJustStarted = true;
       };
@@ -360,8 +277,6 @@ var AnnotatorUI = (function($, window, undefined) {
         if (id = target.attr('data-span-id')) {
           arcOptions = null;
           startArcDrag(id);
-          evt.stopPropagation();
-          evt.preventDefault();
           return false;
         }
       };
@@ -369,7 +284,6 @@ var AnnotatorUI = (function($, window, undefined) {
       var onMouseMove = function(evt) {
         if (arcDragOrigin) {
           if (arcDragJustStarted) {
-            arcDragArc.setAttribute('visibility', 'visible');
             // show the possible targets
             var span = data.spans[arcDragOrigin] || {};
             var spanDesc = spanTypes[span.type] || {};
@@ -377,26 +291,21 @@ var AnnotatorUI = (function($, window, undefined) {
             // separate out possible numeric suffix from type for highight
             // (instead of e.g. "Theme3", need to look for "Theme")
             var noNumArcType = stripNumericSuffix(arcOptions && arcOptions.type);
-            var targetTypes = [];
+            // var targetClasses = [];
+            var $targets = $();
             $.each(spanDesc.arcs || [], function(possibleArcNo, possibleArc) {
               if ((arcOptions && possibleArc.type == noNumArcType) || !(arcOptions && arcOptions.old_target)) {
                 $.each(possibleArc.targets || [], function(possibleTargetNo, possibleTarget) {
-                  targetTypes.push(possibleTarget);
+                  // speedup for #642: relevant browsers should support
+                  // this function: http://www.quirksmode.org/dom/w3c_core.html#t11
+                  // so we get off jQuery and get down to the metal:
+                  // targetClasses.push('.span_' + possibleTarget);
+                  $targets = $targets.add(svgElement[0].getElementsByClassName('span_' + possibleTarget));
                 });
               }
             });
-            arcTargets = [];
-            arcTargetRects = [];
-            $.each(data.spans, function(spanNo, span) {
-              if (span.id == arcDragOrigin) return;
-              if (targetTypes.indexOf(span.type) != -1) {
-                arcTargets.push(span.id);
-                $.each(span.fragments, function(fragmentNo, fragment) {
-                  arcTargetRects.push(fragment.rect);
-                });
-              }
-            });
-            $(arcTargetRects).addClass('reselectTarget');
+            // $(targetClasses.join(',')).not('[data-span-id="' + arcDragOrigin + '"]').addClass('reselectTarget');
+            $targets.not('[data-span-id="' + arcDragOrigin + '"]').addClass('reselectTarget');
           }
           clearSelection();
           var mx = evt.pageX - svgPosition.left;
@@ -658,7 +567,7 @@ var AnnotatorUI = (function($, window, undefined) {
             eLeft = Math.min(Math.max(eLeft,0), screenWidth - elementWidth);
         } else {
             eLeft = 0;
-        } 
+        }
         if (screenHeight > elementHeight) {
             eTop  = Math.min(Math.max(eTop,0), screenHeight - elementHeight);
         } else {
@@ -728,7 +637,7 @@ var AnnotatorUI = (function($, window, undefined) {
         }
 
         $('#span_selected').text(spanText);
-        var encodedText = encodeURIComponent(spanText);       
+        var encodedText = encodeURIComponent(spanText);
         $.each(searchConfig, function(searchNo, search) {
           $('#span_'+search[0]).attr('href', search[1].replace('%s', encodedText));
         });
@@ -736,17 +645,18 @@ var AnnotatorUI = (function($, window, undefined) {
         // enable all inputs by default (see setSpanTypeSelectability)
         $('#span_form input:not([unused])').removeAttr('disabled');
 
-        // close span types if there's over typeCollapseLimit
-        if ($('#entity_types .item').length > Configuration.typeCollapseLimit) {
+        // close span types if there's over spanTypesToShowBeforeCollapse
+        if ($('#entity_types .item').length > spanTypesToShowBeforeCollapse) {
           $('#entity_types .open').removeClass('open');
         }
-        if ($('#event_types .item').length > Configuration.typeCollapseLimit) {
+        if ($('#event_types .item').length > spanTypesToShowBeforeCollapse) {
           $('#event_types .open').removeClass('open');
         }
 
         var showAllAttributes = false;
         if (span) {
-          var linkHash = new URLHash(coll, doc, { focus: [[span.id]] }).getHash();
+          var hash = new URLHash(coll, doc, { focus: [[span.id]] }).getHash();
+          $('#span_highlight_link').attr('href', hash).show();
           var el = $('#span_' + span.type);
           if (el.length) {
             el[0].checked = true;
@@ -779,8 +689,7 @@ var AnnotatorUI = (function($, window, undefined) {
             $('#span_form_split').hide();
           }
         } else {
-          var offsets = spanOptions.offsets[0];
-          var linkHash = new URLHash(coll, doc, { focus: [[offsets[0], offsets[1]]] }).getHash();
+          $('#span_highlight_link').hide();
           var firstRadio = $('#span_form input:radio:not([unused]):first')[0];
           if (firstRadio) {
             firstRadio.checked = true;
@@ -793,7 +702,6 @@ var AnnotatorUI = (function($, window, undefined) {
           $('#span_notes').val('');
           showAllAttributes = true;
         }
-        $('#span_highlight_link').attr('href', linkHash);
         if (span && !reselectedSpan) {
           $('#span_form_reselect, #span_form_delete, #span_form_add_fragment').show();
           keymap[$.ui.keyCode.DELETE] = 'span_form_delete';
@@ -827,15 +735,6 @@ var AnnotatorUI = (function($, window, undefined) {
               $input = $('#'+category+'_attr_'+Util.escapeQuotes(attr.type));
               if (attr.unused) {
                 $input.val('');
-              } else if (attr.default) {
-                  if (attr.bool) {
-                    // take any non-empty default value as "true"
-                    $input[0].checked = true;
-                    updateCheckbox($input);
-                    $input.button('refresh');
-                  } else {
-                    $input.val(attr.default).change();
-                  }
               } else if (attr.bool) {
                 $input[0].checked = false;
                 updateCheckbox($input);
@@ -902,32 +801,27 @@ var AnnotatorUI = (function($, window, undefined) {
 
           // fill if found (NOTE: only shows last on multiple)
           var normFilled = false;
-          normalizations = {};
           $.each(span ? span.normalizations : [], function(normNo, norm) {
             var refDb = norm[0], refId = norm[1], refText = norm[2];
             $normDb.val(refDb);
             // could the DB selector be set? (i.e. is refDb configured?)
             if ($normDb.val() == refDb) {
-              if (!normFilled) normFilled = refDb;
-              if (!normalizations[refDb]) normalizations[refDb] = []
-              normalizations[refDb].push([refId, refText]);
+              // DB is OK, set the rest also
+              $normId.val(refId);
+              oldSpanNormIdValue = refId;
+              $normText.val(refText);
+              // TODO: check if ID is valid
+              $normId.addClass('valid_value')
+              normFilled = true;
             } else {
               // can't set the DB selector; assume DB is not configured,
               // warn and leave blank (will remove norm when dialog is OK'd)
               dispatcher.post('messages', [[['Warning: '+refDb+' not configured, removing normalization.', 'warning']]]);
             }
           });
-          if (normFilled) {
-            // DB is OK, set the rest also
-            var norm = normalizations[normFilled][0];
-            oldSpanNormIdValue = norm[0];
-            $normId.val(norm[0]);
-            $normText.val(norm[1]);
-            // TODO: check if ID is valid
-            console.log(normalizations, normFilled);
-            $normId.attr('data-value', normalizations[normFilled].length == 1 ? 'valid' : 'multi')
-          } else {
-            // if there is no existing normalization, show valid ones
+
+          // if there is no existing normalization, show valid ones
+          if (!normFilled) {
             showValidNormalizations();
           }
 
@@ -943,12 +837,10 @@ var AnnotatorUI = (function($, window, undefined) {
             var $input = $('#'+category+'_attr_'+Util.escapeQuotes(attr.type));
             var showAttr = showAllAttributes || $.inArray(attr.type, validAttrs) != -1;
             if (showAttr) {
-              // $input.button('widget').parent().show();
-              $input.closest('.attribute_type_label').show();
+              $input.button('widget').show();
               shownCount++;
             } else {
-              // $input.button('widget').parent().hide();
-              $input.closest('.attribute_type_label').hide();
+              $input.button('widget').hide();
             }
           });
           return shownCount;
@@ -956,12 +848,10 @@ var AnnotatorUI = (function($, window, undefined) {
 
         showValidAttributes = function() {
           var type = $('#span_form input:radio:checked').val();
-          
-          showAllAttributes = false;
-          
           var entityAttrCount = showAttributesFor(entityAttributeTypes, 'entity', type);
           var eventAttrCount = showAttributesFor(eventAttributeTypes, 'event', type);
-          
+
+          showAllAttributes = false;
           // show attribute frames only if at least one attribute is
           // shown, and set size classes appropriately
           if (eventAttrCount > 0) {
@@ -1000,7 +890,7 @@ var AnnotatorUI = (function($, window, undefined) {
         if (reselectedSpan) { // && !Configuration.confirmModeOn) {
           submitReselect();
         } else {
-          dispatcher.post('showForm', [spanForm, true]);
+          dispatcher.post('showForm', [spanForm]);
           $('#span_form-ok').focus();
           adjustToCursor(evt, spanForm.parent());
         }
@@ -1036,7 +926,7 @@ var AnnotatorUI = (function($, window, undefined) {
           var $label = $('<label class="span_type_label"/>').
             attr('for', 'rapid_span_' + (typeNo+1)).
             text(name+' (' + (100.0 * prob).toFixed(1) + '%)');
-          $label.css('background-color', spanBgColor);          
+          $label.css('background-color', spanBgColor);
           // TODO: check for unnecessary extra wrapping here
           var $content = $('<div class="item_content"/>').
             append($numlabel).
@@ -1077,7 +967,7 @@ var AnnotatorUI = (function($, window, undefined) {
         });
         // fill in some space and the special "Other" option, with key "0" (zero)
         $spanTypeDiv.append($('<div class="item_content">&#160;</div>')); // non-breaking space
-        var $numlabel = $('<span class="accesskey">0</span><span>:</span>');        
+        var $numlabel = $('<span class="accesskey">0</span><span>:</span>');
         var $input = $('<input type="radio" name="rapid_span_type" id="rapid_span_0" value=""/>');
         var $label = $('<label class="span_type_label" for="rapid_span_0" style="background-color:lightgray">Other...</label>');
         var $content = $('<div class="item_content"/>').
@@ -1111,17 +1001,11 @@ var AnnotatorUI = (function($, window, undefined) {
                        false, false);
       };
 
-      var clearArcNotes = function(evt) {
-        $('#arc_notes').val('');
-      }
-      $('#clear_arc_notes_button').button();
-      $('#clear_arc_notes_button').click(clearArcNotes);
-
       var clearSpanNotes = function(evt) {
         $('#span_notes').val('');
       }
-      $('#clear_span_notes_button').button();
-      $('#clear_span_notes_button').click(clearSpanNotes);
+      $('#clear_notes_button').button();
+      $('#clear_notes_button').click(clearSpanNotes);
 
       var clearSpanNorm = function(evt) {
         clearNormalizationUI();
@@ -1135,17 +1019,17 @@ var AnnotatorUI = (function($, window, undefined) {
           // TODO: better response to failure
           dispatcher.post('messages', [[['Lookup error', 'warning', -1]]]);
           return false;
-        }        
+        }
         // set input style according to whether we have a valid value
-        var $normId = $('#span_norm_id');
+        var $idinput = $('#span_norm_id');
         // TODO: make sure the key echo in the response matches the
         // current value of the $idinput
-        $normId.attr('data-value', null);
+        $idinput.removeClass('valid_value').removeClass('invalid_value');
         if (response.value === null) {
-          $normId.addClass('invalid_value');
+          $idinput.addClass('invalid_value');
           hideNormalizationRefLink();
         } else {
-          $normId.attr('data-value', 'valid');
+          $idinput.addClass('valid_value');
           updateNormalizationRefLink();
         }
         $('#span_norm_txt').val(response.value);
@@ -1154,30 +1038,10 @@ var AnnotatorUI = (function($, window, undefined) {
       // on any change to the normalization DB, clear everything and
       // update link
       var spanNormDbUpdate = function(evt) {
-        var normDb = $('span_norm_db').val();
-        if (normalizations[normDb]) {
-          var norm = normalizations[normDb][0];
-          $('#span_norm_id').val(norm[0]).
-              attr('data-value', normalizations[normFilled].length == 1 ? 'valid' : 'multi')
-          $('#span_norm_txt').val(norm[1]);
-        } else {
-          clearNormalizationUI();
-        }
+        clearNormalizationUI();
         updateNormalizationDbLink();
       }
       $('#span_norm_db').change(spanNormDbUpdate);
-
-      // if there's multiple normalisations for the type, allow selection
-      var spanNormSelect = function(evt) {
-        var normDb = $('#span_norm_db').val();
-        if (normalizations[normDb].length > 1) {
-          showNormSearchDialog();
-          setSpanNormSearchResults({
-            header: ['ID', 'Text'],
-            items: normalizations[normDb],
-          });
-        }
-      }
 
       // on any change to the normalization ID, update the text of the
       // reference
@@ -1197,12 +1061,9 @@ var AnnotatorUI = (function($, window, undefined) {
           }
           oldSpanNormIdValue = key;
         }
-        // TODO make it possible for multiple types of normalisations
-        // to survive to save
       }
       // see http://stackoverflow.com/questions/1948332/detect-all-changes-to-a-input-type-text-immediately-using-jquery
-      $('#span_norm_id').bind('propertychange keyup input paste', spanNormIdUpdate).
-          bind('click', spanNormSelect);
+      $('#span_norm_id').bind('propertychange keyup input paste', spanNormIdUpdate);
       // nice-looking select for normalization
       $('#span_norm_db').addClass('ui-widget ui-state-default ui-button-text');
 
@@ -1218,7 +1079,7 @@ var AnnotatorUI = (function($, window, undefined) {
           close: function(evt) {
             // assume that we always want to return to the span dialog
             // on normalization dialog close
-            dispatcher.post('showForm', [spanForm, true]);
+            dispatcher.post('showForm', [spanForm]);
           },
       });
       $('#norm_search_query').autocomplete({
@@ -1237,8 +1098,7 @@ var AnnotatorUI = (function($, window, undefined) {
         focus: function(evt, ui) {
           // do nothing
         },
-      }).autocomplete('instance')._renderItem = function($ul, item) {
-        // XXX TODO TEST
+      }).data('autocomplete')._renderItem = function($ul, item) {
         return $('<li></li>').
           data('item.autocomplete', item).
           append('<a>' + Util.escapeHTML(item.value) + '<div class="autocomplete-id">' + Util.escapeHTML(item.id) + "</div></a>").
@@ -1271,7 +1131,7 @@ var AnnotatorUI = (function($, window, undefined) {
       };
       var normSearchSubmit = function(evt) {
         if (normSearchSubmittable) {
-          var selectedId = $('#norm_search_id').val(); 
+          var selectedId = $('#norm_search_id').val();
           var selectedTxt = $('#norm_search_query').val();
 
           normSubmit(selectedId, selectedTxt);
@@ -1362,13 +1222,20 @@ var AnnotatorUI = (function($, window, undefined) {
         setNormSearchSubmit(false);
       });
       var showNormSearchDialog = function() {
-        // take default search string from annotated span and clear ID entry
-        // (if the selected string was correct, search wouldn't be necessary)
-        $('#norm_search_id').val('');
-        $('#norm_search_query').val($('#span_selected').text());
+        // if we already have non-empty ID and normalized string,
+        // use these as default; otherwise take default search string
+        // from annotated span and clear ID entry
+        if (!$('#span_norm_id').val().match(/^\s*$/) &&
+            !$('#span_norm_txt').val().match(/^\s*$/)) {
+          $('#norm_search_id').val($('#span_norm_id').val());
+          $('#norm_search_query').val($('#span_norm_txt').val());
+        } else {
+          $('#norm_search_id').val('');
+          $('#norm_search_query').val($('#span_selected').text());
+        }
         // blank the table
         $('#norm_search_result_select thead').empty();
-        $('#norm_search_result_select tbody').empty();        
+        $('#norm_search_result_select tbody').empty();
         // TODO: support for two (or more) dialogs open at the same time
         // so we don't need to hide this before showing normSearchDialog
         dispatcher.post('hideForm');
@@ -1415,9 +1282,6 @@ var AnnotatorUI = (function($, window, undefined) {
           relationTypesHash[noNumArcType].properties.transitive;
 
         var $scroller = $();
-        var mapOf$containers = {};
-        var mapOf$items = {};
-        var mapOfParents = {};
         if (spanTypes[originType]) {
           var arcTypes = spanTypes[originType].arcs;
           $scroller = $('#arc_roles .scroller').empty();
@@ -1426,40 +1290,23 @@ var AnnotatorUI = (function($, window, undefined) {
           $.each(arcTypes || [], function(arcTypeNo, arcDesc) {
             if (arcDesc.targets && arcDesc.targets.indexOf(targetType) != -1) {
               var arcTypeName = arcDesc.type;
-              var relType = relationTypesHash && relationTypesHash[arcTypeName];
 
-              var isThisEquiv = relType &&
-                relType.properties &&
-                relType.properties.symmetric &&
-                relType.properties.transitive;
+              var isThisEquiv =
+                relationTypesHash &&
+                relationTypesHash[arcTypeName] &&
+                relationTypesHash[arcTypeName].properties &&
+                relationTypesHash[arcTypeName].properties.symmetric &&
+                relationTypesHash[arcTypeName].properties.transitive;
 
               // do not allow equiv<->non-equiv change options
               if (arcType && isEquiv != isThisEquiv) return;
 
-              var displayName = ((arcDesc.labels && arcDesc.labels[0]) || 
+              var displayName = ((arcDesc.labels && arcDesc.labels[0]) ||
                                  arcTypeName);
-              var $input = $('<input id="arc_' + arcTypeName + '" type="radio" name="arc_type" value="' + arcTypeName + '"/>');
+              var $checkbox = $('<input id="arc_' + arcTypeName + '" type="radio" name="arc_type" value="' + arcTypeName + '"/>');
               var $label = $('<label class="arc_type_label" for="arc_' + arcTypeName + '"/>').text(displayName);
-              var $collapsible = $('<div class="collapsible"/>');
-              var $content = $('<div class="item_content"/>').
-                append($input).
-                append($label).
-                append($collapsible);
-              var $div = $('<div class="item"/>');
-              if (relType && relType.children && relType.children.length) {
-                var $collapser = $('<div class="collapser"/>').data('rel-name', arcTypeName);
-                $div.append($collapser);
-                $.each(relType.children, function(childRelNo, childRel) {
-                  mapOfParents[childRel.type] = arcTypeName;
-                });
-                if (!collapsed[arcTypeName]) {
-                  $collapser.addClass('open');
-                  $collapsible.addClass('open');
-                }
-              }
-              $div.append($content);
-              mapOf$containers[arcTypeName] = $collapsible;
-              mapOf$items[arcTypeName] = $div
+              var $div = $('<div/>').append($checkbox).append($label);
+              $scroller.append($div);
               if (arcDesc.hotkey) {
                 keymap[arcDesc.hotkey] = '#arc_' + arcTypeName;
                 var name = $label.html();
@@ -1480,11 +1327,6 @@ var AnnotatorUI = (function($, window, undefined) {
 
               noArcs = false;
             }
-          });
-
-          $.each(mapOf$items, function(name, $div) {
-            var parent = mapOfParents[name];
-            $div.appendTo(parent ? mapOf$containers[parent] : $scroller);
           });
         }
 
@@ -1531,8 +1373,7 @@ var AnnotatorUI = (function($, window, undefined) {
           if (backTargetType) {
             $.each(backTargetType.arcs || [], function(backArcTypeNo, backArcDesc) {
               if ($.inArray(originType, backArcDesc.targets || []) != -1) {
-                var relType = relationTypesHash[backArcDesc.type];
-                reversalPossible = relType && relType.properties && (!relType.properties.symmetric);
+                reversalPossible = true;
                 return false; // terminate the loop
               }
             });
@@ -1563,7 +1404,6 @@ var AnnotatorUI = (function($, window, undefined) {
         }
 
         var arcAnnotatorNotes;
-        var isMultiRelation = arcId && arcId instanceof Array
         var isBinaryRelation = arcId && !(arcId instanceof Array);
         if (isBinaryRelation) {
           // only for relation arcs
@@ -1577,7 +1417,7 @@ var AnnotatorUI = (function($, window, undefined) {
         }
 
         // disable notes for arc types that don't support storage (#945)
-        if(isMultiRelation || isEquiv) {
+        if(!isBinaryRelation || isEquiv) {
           // disable the actual input
           $('#arc_notes').attr('disabled', 'disabled');
           // add to fieldset for style
@@ -1591,7 +1431,6 @@ var AnnotatorUI = (function($, window, undefined) {
         $('#arc_form-ok').focus();
         adjustToCursor(evt, arcForm.parent());
       };
-      
 
       var reverseArc = function(evt) {
         var eventDataId = $(evt.target).attr('data-arc-ed');
@@ -1655,194 +1494,18 @@ var AnnotatorUI = (function($, window, undefined) {
           if (target) {
             target.parent().removeClass('highlight');
           }
-          arcDragArc.setAttribute('visibility', 'hidden');
+          if (arcDragArc) {
+            svg.remove(arcDragArc);
+            arcDrag = null;
+          }
           arcDragOrigin = null;
           if (arcOptions) {
               $('g[data-from="' + arcOptions.origin + '"][data-to="' + arcOptions.target + '"]').removeClass('reselect');
           }
           svgElement.removeClass('reselect');
-          $(arcTargetRects).removeClass('reselectTarget');
-          arcTargets = [];
-          arcTargetRects = [];
         }
         svgElement.removeClass('unselectable');
-      };
-
-      var tryToAnnotate = function(evt) {
-        var sel = window.getSelection();
-        var theFocusNode = sel.focusNode;
-        if (!theFocusNode) return;
-
-        var chunkIndexFrom = sel.anchorNode && $(sel.anchorNode.parentNode).attr('data-chunk-id');
-        var chunkIndexTo;
-        chunkIndexTo = $(theFocusNode.parentNode).attr('data-chunk-id');
-        if (!chunkIndexTo) {
-          theFocusNode = $(theFocusNode).children()[0].firstChild;
-          chunkIndexTo = $(theFocusNode.parentNode).attr('data-chunk-id');
-        }
-        // var chunkIndexTo = sel.focusNode && ($(sel.focusNode.parentNode).attr('data-chunk-id') || $(sel.focusNode).children().first().attr('data-chunk-id'));
-
-        // fallback for firefox (at least):
-        // it's unclear why, but for firefox the anchor and focus
-        // node parents are always undefined, the the anchor and
-        // focus nodes themselves do (often) have the necessary
-        // chunk ID. However, anchor offsets are almost always
-        // wrong, so we'll just make a guess at what the user might
-        // be interested in tagging instead of using what's given.
-        var anchorOffset = null;
-        var focusOffset = null;
-        if (chunkIndexFrom === undefined && chunkIndexTo === undefined &&
-            $(sel.anchorNode).attr('data-chunk-id') &&
-            $(theFocusNode).attr('data-chunk-id')) {
-          // A. Scerri FireFox chunk
-
-          var range = sel.getRangeAt(0);
-          var svgOffset = $(svg._svg).offset();
-          var flip = false;
-          var tries = 0;
-          while (tries < 2) {
-            var sp = svg._svg.createSVGPoint();
-            sp.x = (flip ? evt.pageX : dragStartedAt.pageX) - svgOffset.left;
-            sp.y = (flip ? evt.pageY : dragStartedAt.pageY) - (svgOffset.top + 8);
-            var startsAt = range.startContainer;
-            anchorOffset = startsAt.getCharNumAtPosition(sp);
-            chunkIndexFrom = startsAt && $(startsAt).attr('data-chunk-id');
-            if (anchorOffset != -1) {
-              break;
-            }
-            flip = true;
-            tries++;
-          }
-          sp.x = (flip ? dragStartedAt.pageX : evt.pageX) - svgOffset.left;
-          sp.y = (flip ? dragStartedAt.pageY : evt.pageY) - (svgOffset.top + 8);
-          var endsAt = range.endContainer;
-          focusOffset = endsAt.getCharNumAtPosition(sp);
-
-          if (range.startContainer == range.endContainer && anchorOffset > focusOffset) {
-            var t = anchorOffset;
-            anchorOffset = focusOffset;
-            focusOffset = t;
-            flip = false;
-          }
-          if (focusOffset != -1) {
-            focusOffset++;
-          }
-          chunkIndexTo = endsAt && $(endsAt).attr('data-chunk-id');
-
-          //console.log('fallback from', data.chunks[chunkIndexFrom], anchorOffset);
-          //console.log('fallback to', data.chunks[chunkIndexTo], focusOffset);
-        } else {
-          // normal case, assume the exact offsets are usable
-          anchorOffset = sel.anchorOffset;
-          focusOffset = sel.focusOffset;
-        }
-
-        if (evt.type == 'keydown') {
-          var offset = sel.focusOffset;
-          if (offset >= theFocusNode.length) {
-            offset = theFocusNode.length - 1;
-          }
-          var endpos = theFocusNode.parentNode.getEndPositionOfChar(offset);
-          var svgpos = $(svg._svg).offset();
-          evt.clientX = endpos.x + svgpos.left - window.scrollX;
-          evt.clientY = endpos.y + svgpos.top - window.scrollY;
-        }
-
-        if (chunkIndexFrom !== undefined && chunkIndexTo !== undefined) {
-          var chunkFrom = data.chunks[chunkIndexFrom];
-          var chunkTo = data.chunks[chunkIndexTo];
-          var selectedFrom = chunkFrom.from + anchorOffset;
-          var selectedTo = chunkTo.from + focusOffset;
-          sel.removeAllRanges();
-
-          if (selectedFrom > selectedTo) {
-            var tmp = selectedFrom; selectedFrom = selectedTo; selectedTo = tmp;
-          }
-          // trim
-          while (selectedFrom < selectedTo && " \n\t".indexOf(data.text.substr(selectedFrom, 1)) !== -1) selectedFrom++;
-          while (selectedFrom < selectedTo && " \n\t".indexOf(data.text.substr(selectedTo - 1, 1)) !== -1) selectedTo--;
-
-          // shift+click allows zero-width spans
-          if (selectedFrom === selectedTo && !evt.shiftKey) {
-            // simple click (zero-width span)
-            return;
-          }
-
-          var newOffset = [selectedFrom, selectedTo];
-          if (reselectedSpan) {
-            var newOffsets = reselectedSpan.offsets.slice(0); // clone
-            spanOptions.old_offsets = JSON.stringify(reselectedSpan.offsets);
-            if (selectedFragment !== null) {
-              if (selectedFragment !== false) {
-                newOffsets.splice(selectedFragment, 1);
-              }
-              newOffsets.push(newOffset);
-              newOffsets.sort(Util.cmpArrayOnFirstElement);
-              spanOptions.offsets = newOffsets;
-            } else {
-              spanOptions.offsets = [newOffset];
-            }
-          } else {
-            spanOptions = {
-              action: 'createSpan',
-              offsets: [newOffset]
-            }
-          }
-
-
-/* In relation to #786, removed the cross-sentence checking code
-          var crossSentence = true;
-          $.each(sourceData.sentence_offsets, function(sentNo, startEnd) {
-            if (selectedTo <= startEnd[1]) {
-              // this is the sentence
-
-              if (selectedFrom >= startEnd[0]) {
-                crossSentence = false;
-              }
-              return false;
-            }
-          });
-
-          if (crossSentence) {
-            // attempt to annotate across sentence boundaries; not supported
-            dispatcher.post('messages', [[['Error: cannot annotate across a sentence break', 'error']]]);
-            if (reselectedSpan) {
-              $(reselectedSpan.rect).removeClass('reselect');
-            }
-            reselectedSpan = null;
-            svgElement.removeClass('reselect');
-          } else
-*/
-          if (lockOptions) {
-            spanFormSubmit();
-            dispatcher.post('logAction', ['spanLockNewSubmitted']);
-          } else if (!Configuration.rapidModeOn || reselectedSpan != null) {
-            // normal span select in standard annotation mode
-            // or reselect: show selector
-            var spanText = data.text.substring(selectedFrom, selectedTo);
-            fillSpanTypesAndDisplayForm(evt, spanText, reselectedSpan);
-            // for precise timing, log annotation display to user.
-            dispatcher.post('logAction', ['spanSelected']);
-          } else {
-            // normal span select in rapid annotation mode: call
-            // server for span type candidates
-            var spanText = data.text.substring(selectedFrom, selectedTo);
-            // TODO: we're currently storing the event to position the
-            // span form using adjustToCursor() (which takes an event),
-            // but this is clumsy and suboptimal (user may have scrolled
-            // during the ajax invocation); think of a better way.
-            lastRapidAnnotationEvent = evt;
-            dispatcher.post('ajax', [ { 
-                            action: 'suggestSpanTypes',
-                            collection: coll,
-                            'document': doc,
-                            start: selectedFrom,
-                            end: selectedTo,
-                            text: spanText,
-                            model: $('#rapid_model').val(),
-                            }, 'suggestedSpanTypes']);
-          }
-        }
+        $('.reselectTarget').removeClass('reselectTarget');
       };
 
       var onMouseUp = function(evt) {
@@ -1861,16 +1524,12 @@ var AnnotatorUI = (function($, window, undefined) {
           return;
         }
 
-        if (arcDragJustStarted && (Util.isMac ? evt.metaKey : evt.ctrlKey)) {
-          // is it arc drag start (with ctrl or alt)? do nothing special
-
-        } else if (arcDragOrigin) {
-          // is it arc drag end?
+        // is it arc drag end?
+        if (arcDragOrigin) {
           var origin = arcDragOrigin;
-          var id = target.attr('data-span-id');
-          var targetValid = arcTargets.indexOf(id) != -1;
+          var targetValid = target.hasClass('reselectTarget');
           stopArcDrag(target);
-          if (id && origin != id && targetValid) {
+          if ((id = target.attr('data-span-id')) && origin != id && targetValid) {
             var originSpan = data.spans[origin];
             var targetSpan = data.spans[id];
             if (arcOptions && arcOptions.old_target) {
@@ -1891,9 +1550,158 @@ var AnnotatorUI = (function($, window, undefined) {
               dispatcher.post('logAction', ['arcSelected']);
             }
           }
-        } else if (!(Util.isMac ? evt.metaKey : evt.ctrlKey)) {
+        } else if (!evt.ctrlKey) {
           // if not, then is it span selection? (ctrl key cancels)
-          tryToAnnotate(evt);
+          var sel = window.getSelection();
+          var chunkIndexFrom = sel.anchorNode && $(sel.anchorNode.parentNode).attr('data-chunk-id');
+          var chunkIndexTo = sel.focusNode && $(sel.focusNode.parentNode).attr('data-chunk-id');
+
+          // fallback for firefox (at least):
+          // it's unclear why, but for firefox the anchor and focus
+          // node parents are always undefined, the the anchor and
+          // focus nodes themselves do (often) have the necessary
+          // chunk ID. However, anchor offsets are almost always
+          // wrong, so we'll just make a guess at what the user might
+          // be interested in tagging instead of using what's given.
+          var anchorOffset = null;
+          var focusOffset = null;
+          if (chunkIndexFrom === undefined && chunkIndexTo === undefined &&
+              $(sel.anchorNode).attr('data-chunk-id') &&
+              $(sel.focusNode).attr('data-chunk-id')) {
+            // A. Scerri FireFox chunk
+
+            var range = sel.getRangeAt(0);
+            var svgOffset = $(svg._svg).offset();
+            var flip = false;
+            var tries = 0;
+            while (tries < 2) {
+              var sp = svg._svg.createSVGPoint();
+              sp.x = (flip ? evt.pageX : dragStartedAt.pageX) - svgOffset.left;
+              sp.y = (flip ? evt.pageY : dragStartedAt.pageY) - (svgOffset.top + 8);
+              var startsAt = range.startContainer;
+              anchorOffset = startsAt.getCharNumAtPosition(sp);
+              chunkIndexFrom = startsAt && $(startsAt).attr('data-chunk-id');
+              if (anchorOffset != -1) {
+                break;
+              }
+              flip = true;
+              tries++;
+            }
+            sp.x = (flip ? dragStartedAt.pageX : evt.pageX) - svgOffset.left;
+            sp.y = (flip ? dragStartedAt.pageY : evt.pageY) - (svgOffset.top + 8);
+            var endsAt = range.endContainer;
+            focusOffset = endsAt.getCharNumAtPosition(sp);
+
+            if (range.startContainer == range.endContainer && anchorOffset > focusOffset) {
+              var t = anchorOffset;
+              anchorOffset = focusOffset;
+              focusOffset = t;
+              flip = false;
+            }
+            if (focusOffset != -1) {
+              focusOffset++;
+            }
+            chunkIndexTo = endsAt && $(endsAt).attr('data-chunk-id');
+
+            //console.log('fallback from', data.chunks[chunkIndexFrom], anchorOffset);
+            //console.log('fallback to', data.chunks[chunkIndexTo], focusOffset);
+          } else {
+            // normal case, assume the exact offsets are usable
+            anchorOffset = sel.anchorOffset;
+            focusOffset = sel.focusOffset;
+          }
+
+          if (chunkIndexFrom !== undefined && chunkIndexTo !== undefined) {
+            var chunkFrom = data.chunks[chunkIndexFrom];
+            var chunkTo = data.chunks[chunkIndexTo];
+            var selectedFrom = chunkFrom.from + anchorOffset;
+            var selectedTo = chunkTo.from + focusOffset;
+            sel.removeAllRanges();
+
+            if (selectedFrom > selectedTo) {
+              var tmp = selectedFrom; selectedFrom = selectedTo; selectedTo = tmp;
+            }
+            // trim
+            while (selectedFrom < selectedTo && " \n\t".indexOf(data.text.substr(selectedFrom, 1)) !== -1) selectedFrom++;
+            while (selectedFrom < selectedTo && " \n\t".indexOf(data.text.substr(selectedTo - 1, 1)) !== -1) selectedTo--;
+
+            // shift+click allows zero-width spans
+            if (selectedFrom === selectedTo && !evt.shiftKey) {
+              // simple click (zero-width span)
+              return;
+            }
+
+            var newOffset = [selectedFrom, selectedTo];
+            if (reselectedSpan) {
+              var newOffsets = reselectedSpan.offsets.slice(0); // clone
+              spanOptions.old_offsets = JSON.stringify(reselectedSpan.offsets);
+              if (selectedFragment !== null) {
+                if (selectedFragment !== false) {
+                  newOffsets.splice(selectedFragment, 1);
+                }
+                newOffsets.push(newOffset);
+                newOffsets.sort(Util.cmpArrayOnFirstElement);
+                spanOptions.offsets = newOffsets;
+              } else {
+                spanOptions.offsets = [newOffset];
+              }
+            } else {
+              spanOptions = {
+                action: 'createSpan',
+                offsets: [newOffset]
+              }
+            }
+
+/* In relation to #786, removed the cross-sentence checking code
+            var crossSentence = true;
+            $.each(sourceData.sentence_offsets, function(sentNo, startEnd) {
+              if (selectedTo <= startEnd[1]) {
+                // this is the sentence
+
+                if (selectedFrom >= startEnd[0]) {
+                  crossSentence = false;
+                }
+                return false;
+              }
+            });
+
+            if (crossSentence) {
+              // attempt to annotate across sentence boundaries; not supported
+              dispatcher.post('messages', [[['Error: cannot annotate across a sentence break', 'error']]]);
+              if (reselectedSpan) {
+                $(reselectedSpan.rect).removeClass('reselect');
+              }
+              reselectedSpan = null;
+              svgElement.removeClass('reselect');
+            } else
+*/
+            if (!Configuration.rapidModeOn || reselectedSpan != null) {
+              // normal span select in standard annotation mode
+              // or reselect: show selector
+              var spanText = data.text.substring(selectedFrom, selectedTo);
+              fillSpanTypesAndDisplayForm(evt, spanText, reselectedSpan);
+              // for precise timing, log annotation display to user.
+              dispatcher.post('logAction', ['spanSelected']);
+            } else {
+              // normal span select in rapid annotation mode: call
+              // server for span type candidates
+              var spanText = data.text.substring(selectedFrom, selectedTo);
+              // TODO: we're currently storing the event to position the
+              // span form using adjustToCursor() (which takes an event),
+              // but this is clumsy and suboptimal (user may have scrolled
+              // during the ajax invocation); think of a better way.
+              lastRapidAnnotationEvent = evt;
+              dispatcher.post('ajax', [ {
+                              action: 'suggestSpanTypes',
+                              collection: coll,
+                              'document': doc,
+                              start: selectedFrom,
+                              end: selectedTo,
+                              text: spanText,
+                              model: $('#rapid_model').val(),
+                              }, 'suggestedSpanTypes']);
+            }
+          }
         }
       };
 
@@ -1920,14 +1728,9 @@ var AnnotatorUI = (function($, window, undefined) {
         rapidFillSpanTypesAndDisplayForm(sugg.start, sugg.end, sugg.text, sugg.types);
       };
 
-      var collapsed = {}
       var toggleCollapsible = function($el, state) {
         var opening = state !== undefined ? state : !$el.hasClass('open');
         var $collapsible = $el.parent().find('.collapsible:first');
-        var relName = $el.data('rel-name');
-        if (relName) {
-          collapsed[relName] = !collapsed[relName];
-        }
         if (opening) {
           $collapsible.addClass('open');
           $el.addClass('open');
@@ -1940,7 +1743,6 @@ var AnnotatorUI = (function($, window, undefined) {
       var collapseHandler = function(evt) {
         toggleCollapsible($(evt.target));
       }
-      $('#arc_roles, #entity_types').on('click', '.collapser', collapseHandler);
 
       var spanFormSubmitRadio = function(evt) {
         if (Configuration.confirmModeOn) {
@@ -1996,9 +1798,9 @@ var AnnotatorUI = (function($, window, undefined) {
               append($input).
               append($label).
               append($collapsible);
+            var $collapser = $('<div class="collapser open"/>');
             var $div = $('<div class="item"/>');
             if (type.children.length) {
-              var $collapser = $('<div class="collapser open"/>');
               $div.append($collapser)
             }
             $div.append($content);
@@ -2035,33 +1837,31 @@ var AnnotatorUI = (function($, window, undefined) {
         $.each(types, function(attrNo, attr) {
           var escapedType = Util.escapeQuotes(attr.type);
           var attrId = category+'_attr_'+escapedType;
-          var $span = $('<span class="attribute_type_label"/>').appendTo($top);
           if (attr.unused) {
-            $('<input type="hidden" id="'+attrId+'" value=""/>').appendTo($span);
+            var $input = $('<input type="hidden" id="'+attrId+'" value=""/>');
+            $top.append($input);
           } else if (attr.bool) {
             var escapedName = Util.escapeQuotes(attr.name);
             var $input = $('<input type="checkbox" id="'+attrId+
-                           '" value="' + escapedType + 
+                           '" value="' + escapedType +
                            '" category="' + category + '"/>');
-            var $label = $('<label for="'+attrId+
-                           '" data-bare="' + escapedName + '">&#x2610; ' + 
+            var $label = $('<label class="attribute_type_label" for="'+attrId+
+                           '" data-bare="' + escapedName + '">&#x2610; ' +
                            escapedName + '</label>');
-            $span.append($input).append($label);
+            $top.append($input).append($label);
             $input.button();
             $input.change(onBooleanAttrChange);
           } else {
-            // var $div = $('<div class="ui-button ui-button-text-only attribute_type_label"/>');
-            $span.text(attr.name);
-            $span.append(':&#160;');
+            var $div = $('<div class="ui-button ui-button-text-only attribute_type_label"/>');
             var $select = $('<select id="'+attrId+'" class="ui-widget ui-state-default ui-button-text" category="' + category + '"/>');
-            var $option = $('<option class="ui-state-default" value=""/>').text('?');
+            var $option = $('<option class="ui-state-default" value=""/>').text(attr.name + ': ?');
             $select.append($option);
-            $.each(attr.values, function(valueNo, value) {
-              $option = $('<option class="ui-state-active" value="' + Util.escapeQuotes(value.name) + '"/>').text(value.name);
+            $.each(attr.values, function(valType, value) {
+              $option = $('<option class="ui-state-active" value="' + Util.escapeQuotes(valType) + '"/>').text(attr.name + ': ' + (value.name || valType));
               $select.append($option);
             });
-            $span.append($select);
-            $select.combobox();
+            $div.append($select);
+            $top.append($div);
             $select.change(onMultiAttrChange);
           }
         });
@@ -2072,7 +1872,7 @@ var AnnotatorUI = (function($, window, undefined) {
         // disable not only categories of types (events or entities),
         // but the specific set of types that are incompatible with
         // the current attribute settings.
-        
+
         // just assume all attributes are event attributes
         // TODO: support for entity attributes
         // TODO2: the above comment is almost certainly false, check and remove
@@ -2092,10 +1892,10 @@ var AnnotatorUI = (function($, window, undefined) {
         // is checked, which would cause error on "OK". In this case,
         // check the first valid choice.
         if ($checkedToDisable.length) {
-          var $toCheck = $('#span_form input[category="' + category + '"][disabled!="disabled"]:first');
+          var $toCheck = $('#span_form input[category="' + category + '"]:first');
           // so weird, attr('checked', 'checked') fails sometimes, so
           // replaced with more "metal" version
-          $toCheck[0].checked = true;
+          $toCheck[0].checked = true
         }
       }
 
@@ -2114,11 +1914,9 @@ var AnnotatorUI = (function($, window, undefined) {
       }
 
       var onBooleanAttrChange = function(evt) {
-        if (evt.type == 'change') { // ignore the click event on the UI element
-          var attrCategory = evt.target.getAttribute('category');
-          setSpanTypeSelectability(attrCategory);
-          updateCheckbox($(evt.target));
-        }
+        var attrCategory = evt.target.getAttribute('category');
+        setSpanTypeSelectability(attrCategory);
+        updateCheckbox($(evt.target));
       };
 
       var rememberSpanSettings = function(response) {
@@ -2167,6 +1965,7 @@ var AnnotatorUI = (function($, window, undefined) {
 
         spanForm.find('#entity_types input:radio').click(spanFormSubmitRadio);
         spanForm.find('#event_types input:radio').click(spanFormSubmitRadio);
+        spanForm.find('.collapser').click(collapseHandler);
       };
 
       var tagCurrentDocument = function(taggerId) {
@@ -2317,7 +2116,7 @@ var AnnotatorUI = (function($, window, undefined) {
         var $normText = $('#span_norm_txt');
         $normId.val('');
         oldSpanNormIdValue = '';
-        $normId.attr('data-value', null);
+        $normId.removeClass('valid_value').removeClass('invalid_value');
         $normText.val('');
         updateNormalizationRefLink();
       }
@@ -2363,7 +2162,7 @@ var AnnotatorUI = (function($, window, undefined) {
         return attributes;
       }
 
-      var spanAndAttributeTypesLoaded = function(_spanTypes, 
+      var spanAndAttributeTypesLoaded = function(_spanTypes,
                                                  _entityAttributeTypes,
                                                  _eventAttributeTypes,
                                                  _relationTypesHash) {
@@ -2371,6 +2170,10 @@ var AnnotatorUI = (function($, window, undefined) {
         entityAttributeTypes = _entityAttributeTypes;
         eventAttributeTypes = _eventAttributeTypes;
         relationTypesHash = _relationTypesHash;
+        // for easier access
+        allAttributeTypes = $.extend({},
+                                     entityAttributeTypes,
+                                     eventAttributeTypes);
       };
 
       var gotCurrent = function(_coll, _doc, _args) {
@@ -2423,7 +2226,7 @@ var AnnotatorUI = (function($, window, undefined) {
       // TODO: why are these globals defined here instead of at the top?
       var spanForm = $('#span_form');
       var rapidSpanForm = $('#rapid_span_form');
-    
+
       var deleteSpan = function() {
         if (Configuration.confirmModeOn && !confirm("Are you sure you want to delete this annotation?")) {
           return;
@@ -2466,10 +2269,7 @@ var AnnotatorUI = (function($, window, undefined) {
       });
       dispatcher.post('initForm', [splitForm, {
           alsoResize: '.scroll_fset',
-          width: 400,
-          open: function() {
-            $('#split_form-ok').focus();
-          }
+          width: 400
         }]);
       var splitSpan = function() {
         dispatcher.post('hideForm');
@@ -2488,7 +2288,7 @@ var AnnotatorUI = (function($, window, undefined) {
           $roles.append($role).append($label);
         });
         var $roleButtons = $roles.find('input').button();
-        
+
         dispatcher.post('showForm', [splitForm]);
       };
 
@@ -2528,19 +2328,6 @@ var AnnotatorUI = (function($, window, undefined) {
         $('#waiter').dialog('open');
       };
 
-      var spanChangeLock = function(evt) {
-        var $this = $(evt.target);
-        var locked = $this.is(':checked');
-        $(evt.target).button('option', 'icons', {
-          primary: locked ? 'ui-icon-locked' : 'ui-icon-unlocked'
-        });
-        $('#unlock_type_button').toggle(locked);
-        if (!locked) lockOptions = null;
-      };
-      $('#unlock_type_button').button().hide().click(function(evt) {
-        setTypeLock(false);
-      });
-
       dispatcher.post('initForm', [spanForm, {
           alsoResize: '#entity_and_event_wrapper',
           width: 760,
@@ -2570,25 +2357,6 @@ var AnnotatorUI = (function($, window, undefined) {
               click: splitSpan
             }
           ],
-          create: function(evt) {
-            var $ok = $('#span_form-ok').wrap('<span id="span_form_lock_bset"/>');
-            var $span = $ok.parent();
-            var $lock = $('<input id="span_form_lock" type="checkbox"/>').insertBefore($ok);
-            $('<label for="span_form_lock"/>').text("Lock type").insertBefore($ok);
-            $lock.button({
-              id: 'span_form_lock',
-              text: false,
-              icons: {
-                primary: 'ui-icon-unlocked'
-              },
-            });
-            $lock.click(spanChangeLock);
-            $($span).buttonset();
-          },
-          beforeClose: function(evt) {
-            // in case the form is cancelled
-            setTypeLock(!!lockOptions);
-          },
           close: function(evt) {
             keymap = null;
             if (reselectedSpan) {
@@ -2603,15 +2371,9 @@ var AnnotatorUI = (function($, window, undefined) {
       $('#span_form_delete').attr('title', 'Delete this annotation.');
       $('#span_form_split').attr('title', 'Split this annotation into multiple similar annotations, distributing its arguments.');
 
-      var setTypeLock = function(val) {
-        $('#span_form_lock').prop('checked', val).button('refresh');
-        $('#unlock_type_button').toggle(val);
-        if (!val) lockOptions = null;
-      };
-
       dispatcher.post('initForm', [rapidSpanForm, {
           alsoResize: '#rapid_span_types',
-          width: 400,             
+          width: 400,
           close: function(evt) {
             keymap = null;
           }
@@ -2621,14 +2383,6 @@ var AnnotatorUI = (function($, window, undefined) {
         typeRadio = typeRadio || $('#span_form input:radio:checked');
         var type = typeRadio.val();
         $('#span_form-ok').blur();
-
-        var locked = $('#span_form_lock').is(':checked');
-        if (locked && !lockOptions) {
-          lockOptions = {
-            type: type
-          }
-        }
-
         dispatcher.post('hideForm');
         $.extend(spanOptions, {
           action: 'createSpan',
@@ -2644,10 +2398,6 @@ var AnnotatorUI = (function($, window, undefined) {
 
         if (spanOptions.offsets) {
           spanOptions.offsets = $.toJSON(spanOptions.offsets);
-        }
-
-        if (lockOptions) {
-          $.extend(spanOptions, lockOptions);
         }
 
         // unfocus all elements to prevent focus being kept after
@@ -2702,14 +2452,17 @@ var AnnotatorUI = (function($, window, undefined) {
       };
       rapidSpanForm.submit(rapidSpanFormSubmit);
 
+      // 文本导入操作
       var importForm = $('#import_form');
       var importFormSubmit = function(evt) {
         var _docid = $('#import_docid').val();
+        var _doctitle = $('#import_title').val();
         var _doctext = $('#import_text').val();
         var opts = {
           action : 'importDocument',
           collection : coll,
           docid  : _docid,
+          title : _doctitle,
           text  : _doctext,
         };
         dispatcher.post('ajax', [opts, function(response) {
@@ -2728,6 +2481,22 @@ var AnnotatorUI = (function($, window, undefined) {
         return false;
       };
       importForm.submit(importFormSubmit);
+
+      // 保存表交操作
+      var annotation_submit  = $('#annotation_submit');
+      $('#annotation_submit').click(function(){
+        console.log(1212132123);
+        console.log(dispatcher);
+         dispatcher.post('showForm', [importForm]);
+
+      });
+      var anotationSubmit = function(evt) {
+        dispatcher.post('setDocument', [response.document]);
+      }
+      annotation_submit.submit();
+
+
+
       dispatcher.post('initForm', [importForm, {
           width: 500,
           alsoResize: '#import_text',
@@ -2740,34 +2509,6 @@ var AnnotatorUI = (function($, window, undefined) {
         dispatcher.post('showForm', [importForm]);
         importForm.find('input, textarea').val('');
       });
-
-      var importCollForm = $('#import_coll_form');
-      var importCollDone = function() {
-        // TODO
-      };
-      var importCollFormSubmit = function(evt) {
-        var data = new FormData(importCollForm[0]);
-        data.append('action', 'upload_collection')
-        dispatcher.post('ajax', [data, importCollDone, undefined, {
-          cache: false,
-          contentType: false,
-          processData: false,
-        }]);
-        return false;
-      };
-      importCollForm.submit(importCollFormSubmit);
-      dispatcher.post('initForm', [importCollForm, {
-          width: 500,
-          open: function(evt) {
-            keymap = {};
-          },
-        }]);
-      $('#import_collection_button').click(function() {
-        dispatcher.post('hideForm');
-        dispatcher.post('showForm', [importCollForm]);
-        importCollForm.find('input').val('');
-      });
-
 
       /* BEGIN delete button - related */
 
@@ -2876,13 +2617,8 @@ var AnnotatorUI = (function($, window, undefined) {
         dispatcher.post('annotationIsAvailable');
       };
 
-      var arcDragArcDrawn = function(arc) {
-        arcDragArc = arc;
-      };
-
       dispatcher.
           on('init', init).
-          on('arcDragArcDrawn', arcDragArcDrawn).
           on('getValidArcTypesForDrag', getValidArcTypesForDrag).
           on('dataReady', rememberData).
           on('collectionLoaded', rememberSpanSettings).
@@ -2890,7 +2626,6 @@ var AnnotatorUI = (function($, window, undefined) {
           on('collectionLoaded', setupNormalizationUI).
           on('spanAndAttributeTypesLoaded', spanAndAttributeTypesLoaded).
           on('newSourceData', onNewSourceData).
-          on('showForm', showForm).
           on('hideForm', hideForm).
           on('user', userReceived).
           on('edited', edited).
