@@ -11,6 +11,7 @@ from config import BASE_DIR, DATA_DIR
 from standalone import lock_slqite3
 
 DB_FNAME = 'lite.db'
+
 # state in Table Ann
 Ann_NULL, Ann_ING, Ann_DONE, Ann_CHECKED = list(range(4))
 
@@ -87,7 +88,6 @@ class DBlite():
                         self.import_files(dir)
             return None
 
-
     def import_files(self, directory):
         real_dir = real_directory(directory)
         assert_allowed_to_read(real_dir)
@@ -106,7 +106,7 @@ class DBlite():
             print("Exception in _query: %s" % e, file=sys.stderr)
             self.conn.rollback()
         finally:
-            cursor.close()        
+            cursor.close()   
         
     def set_AnnING_file(self, directory, file, user):
         real_dir = real_directory(directory)        
@@ -117,12 +117,12 @@ class DBlite():
             cursor = self.conn.cursor()
             cursor.execute("""SELECT userName FROM Ann WHERE fileDirAbs = ? and  fileName = ?;""", (directory, file))
             rows = cursor.fetchall()
-            print("rows %s" % rows, file=sys.stderr) 
-            print("rows[0]:%s" % rows[0], file=sys.stderr) 
-            print("rows[0]:%s" % rows[0], file=sys.stderr) 
-            print("len(rows):%d" % len(rows), file=sys.stderr) 
-            print("type rows %s" % type(rows), file=sys.stderr) 
-            print("type rows[0]:%s" % type(rows[0]), file=sys.stderr) 
+            print("rows %s" % rows, file=sys.stderr)
+            print("rows[0]:%s" % rows[0], file=sys.stderr)
+            print("rows[0]:%s" % rows[0], file=sys.stderr)
+            print("len(rows):%d" % len(rows), file=sys.stderr)
+            print("type rows %s" % type(rows), file=sys.stderr)
+            print("type rows[0]:%s" % type(rows[0]), file=sys.stderr)
             # 分配给单个用户标注
             if len(rows) == 1 and None in rows[0]:
                 cursor.execute("""UPDATE Ann SET userName = ?, state = ? WHERE fileDirAbs = ? and  fileName = ?;""", (user, Ann_ING, directory, file))
@@ -137,7 +137,7 @@ class DBlite():
             cursor.close()
             lock_slqite3.release()
             self.show_db()
-            
+
     def set_Ann_user(self, directory, file, user):
         real_dir = real_directory(directory)
         assert_allowed_to_read(real_dir)
@@ -187,7 +187,8 @@ class DBlite():
         assert_allowed_to_read(real_dir)
         try:
             cursor = self.conn.cursor()
-            cursor.execute("""SELECT fileName FROM Ann WHERE state=? and fileDirAbs=?;""", (Ann_NULL, directory) )
+            cursor.execute("""SELECT fileName FROM Ann WHERE state=? and fileDirAbs=?;""", (Ann_NULL, directory))
+
             rows = cursor.fetchall()
             return [row[0] for row in rows]
         except sqlite3.Error as e:
@@ -195,22 +196,38 @@ class DBlite():
         except Exception as e:
             print("Exception in _query: %s" % e, file=sys.stderr)
         finally:
-            cursor.close()    
-        
+            cursor.close()
+
     def get_AnnING_files(self, directory, user):
-        real_dir = real_directory(directory)        
+        real_dir = real_directory(directory)
         assert_allowed_to_read(real_dir)
         try:
             cursor = self.conn.cursor()
-            cursor.execute("""SELECT fileName FROM Ann WHERE state=? and fileDirAbs=? and userName=?;""", (Ann_ING, directory, user) )
+            cursor.execute("""SELECT fileName FROM Ann WHERE state=? and fileDirAbs=? and userName=?;""", (Ann_ING, directory, user))
             rows = cursor.fetchall()
             return [row[0] for row in rows]
         except sqlite3.Error as e:
-            print("Database error: %s" % e, file=sys.stderr) 
+            print("Database error: %s" % e, file=sys.stderr)
         except Exception as e:
             print("Exception in _query: %s" % e, file=sys.stderr)
         finally:
-            cursor.close()   
+            cursor.close()
+
+    def get_Ann_DONE_files(self, directory, user):
+        real_dir = real_directory(directory)
+        assert_allowed_to_read(real_dir)
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute("""SELECT fileName FROM Ann WHERE state=? and fileDirAbs=? and userName=?;""",
+                           (Ann_DONE, directory, user))
+            rows = cursor.fetchall()
+            return [row[0] for row in rows]
+        except sqlite3.Error as e:
+            print("Database error: %s" % e, file=sys.stderr)
+        except Exception as e:
+            print("Exception in _query: %s" % e, file=sys.stderr)
+        finally:
+            cursor.close()
             
     def show_db(self):
         try:
