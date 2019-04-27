@@ -11,9 +11,6 @@ import os
 import socket
 import sys
 import pysnooper
-import multiprocessing
-global lock_slqite3
-lock_slqite3 = multiprocessing.Lock()
 
 from cgi import FieldStorage
 from http.server import HTTPServer, SimpleHTTPRequestHandler
@@ -291,6 +288,20 @@ server is experimental and should not be run as administrator.
         server = BratServer((_DEFAULT_SERVER_ADDR, port))
         print("brat服务连接地址http://%s:%d" % server.server_address, file=sys.stderr)
         server.serve_forever()
+        """
+        DB  to do check&update with multi-user?
+        the root of  problem is that fork() simply creates 
+        an exact independent copy of a process, but these two 
+        processes share opened files, sockets and pipes. That's 
+        why any data written by MySQL server may be [correctly] 
+        read only from a single process and if two processes 
+        try to make requests and read responses then they quite 
+        likely will mess up each other work. This has nothing 
+        with "multithreading" because in case of multi-threading 
+        there's a single process with few threads of executions, 
+        they share data and may coordinate.
+        """
+        
     except KeyboardInterrupt:
         # normal exit
         pass
