@@ -4,6 +4,8 @@
 
 from __future__ import with_statement
 
+import sys
+
 from codecs import open as codecs_open
 from itertools import chain, takewhile
 from os import close as os_close
@@ -13,13 +15,14 @@ from re import compile as re_compile
 from re import match as re_match
 from time import time
 
+# pip install filelock
 from filelock import FileLock
 
 from common import ProtocolError
 from message import Messager
 
 '''
-Functionality related to the annotation file format.
+与标注文件格式相关的功能。在该文件中可获取文件标注实体的数量。
 
 Author:     Pontus Stenetorp   <pontus is s u-tokyo ac jp>
 Version:    2011-01-25
@@ -28,15 +31,15 @@ Version:    2011-01-25
 
 
 
-# Constants
-# The only suffix we allow to write to, which is the joined annotation file
+# 常量
+# 我们允许写入的惟一后缀是已连接的标注文件
 JOINED_ANN_FILE_SUFF = 'ann'
 # These file suffixes indicate partial annotations that can not be written to
 # since they depend on multiple files for completeness
 PARTIAL_ANN_FILE_SUFF = ['a1', 'a2', 'co', 'rel']
 KNOWN_FILE_SUFF = [JOINED_ANN_FILE_SUFF] + PARTIAL_ANN_FILE_SUFF
 TEXT_FILE_SUFFIX = 'txt'
-# String used to catenate texts of discontinuous annotations in reference text
+# 用于连接参考文本中不连续注释的文本的字符串
 DISCONT_SEP = ' '
 ###
 
@@ -254,11 +257,13 @@ def is_valid_id(id):
         return False
 
 
+# 标注类，该类是文本标注的核心，用储存文本标注的基本，如果想自己写标注系统的话，扩展该类显得尤为重要。
 class Annotations(object):
-    """Basic annotation storage.
+    """Basic annotation storage. 基本标注存储
 
     Not concerned with conformity of annotations to text; can be created
     without access to the text file to which the annotations apply.
+    不关心注释是否符合文本;可以在不访问应用注释的文本文件的情况下创建。
     """
 
     def get_document(self):
@@ -278,11 +283,13 @@ class Annotations(object):
 
         try:
             # Do we have a valid suffix? If so, it is probably best to the file
+            # rindex() 返回子字符串 str 在字符串中最后出现的位置
             suff = document[document.rindex('.') + 1:]
             if suff == JOINED_ANN_FILE_SUFF:
                 # It is a joined file, let's load it
                 input_files = [document]
                 # Do we lack write permissions?
+                # 我们缺少写权限吗?
                 if not access(document, W_OK):
                     # TODO: Should raise an exception or warning
                     self._read_only = True
@@ -322,6 +329,7 @@ class Annotations(object):
     def __init__(self, document, read_only=False):
         # this decides which parsing function is invoked by annotation
         # ID prefix (first letter)
+        # 这决定了注释ID前缀(第一个字母)调用哪个解析函数
         self._parse_function_by_id_prefix = {
             'T': self._parse_textbound_annotation,
             'M': self._parse_modifier_annotation,
@@ -354,12 +362,14 @@ class Annotations(object):
         self._line_by_ann = {}
         # Maximum id number used for each id prefix, to speed up id generation
         # XXX: This is effectively broken by the introduction of id suffixes
+        # defaultdict 设置默认字典的值
+        # lambda:1 简写模式，设置默认值为1
         self._max_id_num_by_prefix = defaultdict(lambda: 1)
         # Annotation by id, not includid non-ided annotations
         self._ann_by_id = {}
         ###
 
-        # We use some heuristics to find the appropriate annotation files
+        # 我们使用一些启发式方法来查找适当的标注文件
         self._read_only = read_only
         input_files = self._select_input_files(document)
 
@@ -432,6 +442,7 @@ class Annotations(object):
                     referenced_to_referencer[ref] = set((non_e_ann.id, ))
 
         # Ensure that no non-event references a trigger
+        #
         for tr_ann in self.get_triggers():
             if tr_ann.id in referenced_to_referencer:
                 conflict_ann_ids = referenced_to_referencer[tr_ann.id]
@@ -1071,7 +1082,7 @@ class Annotations(object):
 
 
 class TextAnnotations(Annotations):
-    """Text-bound annotation storage.
+    """Text-bound 标注储存.
 
     Extends Annotations in assuming access to text text to which the
     annotations apply and verifying the correctness of text-bound
