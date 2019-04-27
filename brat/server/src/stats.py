@@ -9,6 +9,7 @@
 Author:     Pontus Stenetorp    <pontus is s u-tokyo ac jp>
 Version:    2011-04-21
 """
+import sys
 
 from logging import info as log_info
 from os import listdir
@@ -23,6 +24,7 @@ from config import BASE_DIR, DATA_DIR
 from annotation import Annotations, open_textfile
 from message import Messager
 from projectconfig import get_config_path, options_get_validation
+from session import get_session
 
 # Constants
 STATS_CACHE_FILE_NAME = '.stats_cache'
@@ -96,11 +98,12 @@ def get_statistics(directory, base_names, use_cache=True):
         generate = True
 
     # "header" and types
-    stat_types = [("Entities", "int"), ("Relations", "int"), ("Events", "int")]
+    stat_types = [("实体", "int"), ("关系", "int"), ("事件", "int")]
 
     if options_get_validation(directory) != 'none':
-        stat_types.append(("Issues", "int"))
+        stat_types.append(("观点", "int"))
 
+    stat_types.append(("修改者","string"))
     if generate:
         # Generate the document statistics from scratch
         from annotation import JOINED_ANN_FILE_SUFF
@@ -108,6 +111,7 @@ def get_statistics(directory, base_names, use_cache=True):
         docstats = []
         for docname in base_names:
             try:
+                # 在这里获取实体，关系，事件，修改者。
                 with Annotations(path_join(directory, docname),
                                  read_only=True) as ann_obj:
                     tb_count = len([a for a in ann_obj.get_entities()])
@@ -115,8 +119,16 @@ def get_statistics(directory, base_names, use_cache=True):
                                  len([a for a in ann_obj.get_equivs()]))
                     event_count = len([a for a in ann_obj.get_events()])
 
+                    try:
+                        user = get_session().get('user')
+                    except KeyError:
+                        user = None
+
+                    if user is None:
+                        user = 'None'
+
                     if options_get_validation(directory) == 'none':
-                        docstats.append([tb_count, rel_count, event_count])
+                        docstats.append([tb_count, rel_count, event_count, user])
                     else:
                         # verify and include verification issue count
                         try:
@@ -129,12 +141,18 @@ def get_statistics(directory, base_names, use_cache=True):
                             # TODO: error reporting
                             issue_count = -1
                         docstats.append(
-                            [tb_count, rel_count, event_count, issue_count])
+                            [tb_count, rel_count, event_count, issue_count, user])
             except Exception as e:
                 log_info('Received "%s" when trying to generate stats' % e)
                 # Pass exceptions silently, just marking stats missing
                 docstats.append([-1] * len(stat_types))
 
+        try:
+            user = get_session().get('user')
+        except KeyError:
+            user = None
+        if user is None:
+            user = 'None'
         # Cache the statistics
         try:
             with open(cache_file_path, 'wb') as cache_file:
