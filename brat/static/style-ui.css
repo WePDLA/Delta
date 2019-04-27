@@ -7,14 +7,9 @@ html {
   overflow-y: scroll;
 }
 
-body .ui-widget {
-  font-size: 0.9em; /* override jQuery UI */
-}
-
-
 #navbuttons * {
   vertical-align: middle;
-  padding: 2px 5px;
+  padding: 10px 10px;
   float: left;
 }
 #header {
@@ -33,11 +28,11 @@ body .ui-widget {
 }
 
 #pulldown {
-  display: none;
+  display: block;
   font-size: 80%;
 }
 #pulldown_padder {
-  padding: 10px;
+  padding: 10px 10px 0 10px;
 }
 #pulldown div + div {
   margin-top: 10px;
@@ -93,10 +88,10 @@ body .ui-widget {
   color: #000000;
 }
 .messages > div.comment {
-  background-color: #87b6d9;
+  background-color: #666;
   color: #ffffff;
+  border:none;
   font-weight: bold;
-  border: 1px outset #27628F;
 }
 .messages > div.debug {
   background-color: #ffff99;
@@ -108,7 +103,10 @@ body .ui-widget {
   display: block;
 }
 
-#span_notes_container, #arc_notes_container, #norm_container {
+#notes_container {
+  position: relative;
+}
+#norm_container {
   position: relative;
 }
 #arc_notes:disabled {
@@ -120,7 +118,7 @@ body .ui-widget {
 #arc_notes_fieldset:disabled legend {
   background-color: #BBBBBB;
 }
-#clear_span_notes_button, #clear_arc_notes_button, #clear_norm_button {                   
+#clear_notes_button, #clear_norm_button {
   padding: 2px 5px;
   position: absolute;
   top: -2px;
@@ -129,14 +127,11 @@ body .ui-widget {
 .span_norm_txt_input {
   background-color: #eaf4fd;
 }
-input[data-value="valid"] {
+input.valid_value {
   background-color: #ccffcc;
 }
-input[data-value="invalid"] {
+input.invalid_value {
   background-color: #ffcccc;
-}
-input[data-value="multi"] {
-  background-color: #ccccff;
 }
 #norm_search_result_select {
   height: 200px;
@@ -172,7 +167,7 @@ input[data-value="multi"] {
   right: -2px;
 }
 
-#span_form .collapser, #arc_form .collapser {
+#span_form .collapser {
     float: left;
     height: 16px;
     width: 16px;
@@ -180,19 +175,21 @@ input[data-value="multi"] {
     cursor: hand;
     background: url('img/expand_icon.gif') no-repeat;
 }
-#span_form .collapser.open, #arc_form .collapser.open {
+#span_form .collapser.open {
     background: url('img/collapse_icon.gif') no-repeat;
 }
-#span_form .collapsible.open, #arc_form .collapsible.open {
+#span_form .collapsible.open {
     display: block;
 }
-#span_form .collapsible, #arc_form .collapsible {
+#span_form .collapsible {
     display: none;
-    margin-left: 20px;
 }
-#span_form .item_content, #arc_form .item_content {
+#span_form .item_content {
     margin-left: 16px;
     white-space: nowrap;
+}
+#span_form .collapsible {
+    margin-left: 20px;
 }
 .type_scroller { /* TODO remove */
     overflow-y: scroll;
@@ -272,15 +269,15 @@ div.scroll_wrapper_upper div.scroller {
 /* special-case visual tweak; not sure why this is necessary */
 #span_search_fieldset {
   margin-bottom: 0.5em;
-} 
+}
 /* END new entity and event dialog style */
 
-.small-buttons .ui-button-text, .small-buttons input[type="button"] {
+.small-buttons .ui-button-text {
   padding: 2px 5px;
 }
 
 #document_ctime, #document_mtime {
-  vertical-align: bottom;                 
+  vertical-align: bottom;
   padding: 0 5px;
   float: left;
 }
@@ -300,10 +297,9 @@ div.scroll_wrapper_upper div.scroller {
   overflow: hidden;
 }
 #document_name {
-  margin-right: 100px;
+  margin-right: 200px;
 }
 #document_name input {
-  width: 100%;
   border: none;
 }
 
@@ -317,7 +313,6 @@ div.scroll_wrapper_upper div.scroller {
 */
 
 .logo {
-  font-family: 'Astloch', serif;
   font-style: normal;
   text-decoration: none;
   text-transform: none;
@@ -333,7 +328,7 @@ div.scroll_wrapper_upper div.scroller {
   float: right;
   cursor: pointer;
   text-shadow: #000000 0 0 3px;
-  padding: 0 10px 0 20px;
+  padding: 5px 10px 0 20px;
 }
 
 #aboutlogo {
@@ -375,10 +370,6 @@ div.scroll_wrapper_upper div.scroller {
   position: fixed;
   right:10px;
   top: 55px;
-}
-
-#span_form_lock_bset button {
-  margin: 0;
 }
 
 #document_select {
@@ -450,7 +441,7 @@ div.scroll_wrapper_upper div.scroller {
   width: 8em;
 }
 #advanced_search_option_toggle {
-  float: right;                      
+  float: right;
   font-size: 80%;
   color: gray;
 }
@@ -507,25 +498,9 @@ div.scroll_wrapper_upper div.scroller {
   margin-top: 25px;
 }
 
-/* Lifted from http://jqueryui.com/autocomplete/#combobox */
-.ui-combobox {
-  position: relative;
-  display: inline-block;
-}
-.ui-combobox-input {
-  margin: 0;
-  padding: 2px;
-}
-.ui-combobox, .ui-combobox input, .ui-autocomplete {
-  font-size: 11px !important;
-  font-family: 'PT Sans Caption', sans-serif !important;
-}
-
-
 @font-face {
   font-family: 'Astloch';
   font-style: normal;
   font-weight: bold;
   src: local('Astloch Bold'), local('Astloch-Bold'), url('fonts/Astloch-Bold.ttf') format('truetype');
 }
-
