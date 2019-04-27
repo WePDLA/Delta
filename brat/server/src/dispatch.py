@@ -13,12 +13,14 @@ from logging import info as log_info
 from os.path import join as path_join
 from os.path import abspath, normpath
 
+import pysnooper
+
 from config import DATA_DIR
 
 from annlog import log_annotation
 from annotator import (create_arc, create_span, delete_arc, delete_span,
                        reverse_arc, split_span)
-from auth import NotAuthorisedError, login, logout, whoami
+from auth import NotAuthorisedError, login, logout, whoami, test
 from common import ProtocolError
 from convert.convert import convert
 from delete import delete_collection, delete_document
@@ -47,6 +49,8 @@ def logging_no_op(collection, document, log):
 
 # Constants
 # Function call-backs
+
+
 DISPATCHER = {
     'getCollectionInformation': get_directory_information,
     'getDocument': get_document,
@@ -61,6 +65,7 @@ DISPATCHER = {
     'login': login,
     'logout': logout,
     'whoami': whoami,
+    'test': test,
 
     'createSpan': create_span,
     'deleteSpan': delete_span,
