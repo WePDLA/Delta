@@ -8,10 +8,13 @@ Author:     Pontus Stenetorp    <pontus is s u-tokyo ac jp>
             Illes Solt          <solt tmit bme hu>
 Version:    2011-04-21
 """
+import sys
 
 from hashlib import sha512
 from os.path import join as path_join
 from os.path import dirname, isdir
+
+import pysnooper
 
 from config import DATA_DIR, USER_PASSWORD
 
@@ -25,7 +28,6 @@ try:
 except ImportError:
     # relpath new to python 2.6; use our implementation if not found
     from common import relpath
-
 
 # To raise if the authority to carry out an operation is lacking
 class NotAuthorisedError(ProtocolError):
@@ -83,7 +85,7 @@ def login(user, password):
         raise InvalidAuthError
 
     get_session()['user'] = user
-    Messager.info('Hello!')
+    Messager.info('你好!')
     return {}
 
 
@@ -94,7 +96,7 @@ def logout():
         # Already deleted, let it slide
         pass
     # TODO: Really send this message?
-    Messager.info('Bye!')
+    Messager.info('已退出!')
     return {}
 
 
@@ -104,7 +106,7 @@ def whoami():
         json_dic['user'] = get_session().get('user')
     except KeyError:
         # TODO: Really send this message?
-        Messager.error('Not logged in!', duration=3)
+        Messager.error('没有登录!', duration=3)
     return json_dic
 
 
@@ -119,6 +121,33 @@ def allowed_to_read(real_path):
     if robotparser is None:
         return True  # default allow
 
+    # 目录读取权限
+    try:
+        user = get_session().get('user')
+        if user is None:
+            Messager.error('没有登录!', duration=3)
+            user = 'guest'
+    except KeyError:
+        Messager.error('没有登录!', duration=3)
+        return False
+
+    # print(user, file=sys.stderr)
+    # display_message('Path: %s, dir: %s, user: %s, ' % (data_path, real_dir, user), type='error', duration=-1)
+    # / tutorials /
+    # / tutorials /
+    # / tutorials / bio /
+    # / tutorials / news /
+    # / tutorials /
+    # / tutorials / bio /
+    # / tutorials / news /
+    # print(data_path, file=sys.stderr)
+
+    return robotparser.can_fetch(user, data_path)
+
+# TODO: Unittesting
+
+@pysnooper.snoop()
+def test():
     try:
         user = get_session().get('user')
     except KeyError:
@@ -126,9 +155,5 @@ def allowed_to_read(real_path):
 
     if user is None:
         user = 'guest'
-
-    #display_message('Path: %s, dir: %s, user: %s, ' % (data_path, real_dir, user), type='error', duration=-1)
-
-    return robotparser.can_fetch(user, data_path)
-
-# TODO: Unittesting
+    json_dic = {"message": "hello world", "user": user}
+    return json_dic
