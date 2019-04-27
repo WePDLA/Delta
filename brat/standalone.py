@@ -10,19 +10,25 @@
 import os
 import socket
 import sys
+import pysnooper
+import multiprocessing
+global lock_slqite3
+lock_slqite3 = multiprocessing.Lock()
+
 from cgi import FieldStorage
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from posixpath import normpath
 from socketserver import ForkingMixIn
 from urllib.parse import unquote
 
+from config import USER_PASSWORD
 
 # brat imports
 sys.path.append(os.path.join(os.path.dirname(__file__), 'server/src'))
 from server import serve
 
-
-_VERBOSE_HANDLER = False
+# 获取详细处理的程序，便于调试。
+_VERBOSE_HANDLER = True
 _DEFAULT_SERVER_ADDR = ''
 _DEFAULT_SERVER_PORT = 8001
 
@@ -36,7 +42,6 @@ Disallow: *.cgi~
 Disallow: /.htaccess~
 Allow: /
 """
-
 
 class PermissionParseError(Exception):
     def __init__(self, linenum, line, message=None):
@@ -277,22 +282,22 @@ server is experimental and should not be run as administrator.
         try:
             port = int(argv[1])
         except ValueError:
-            print("Failed to parse", argv[1], "as port number.", file=sys.stderr)
+            print("解析失败", argv[1], "在该端口.", file=sys.stderr)
             return 1
     else:
         port = _DEFAULT_SERVER_PORT
 
     try:
         server = BratServer((_DEFAULT_SERVER_ADDR, port))
-        print("Serving brat at http://%s:%d" % server.server_address, file=sys.stderr)
+        print("brat服务连接地址http://%s:%d" % server.server_address, file=sys.stderr)
         server.serve_forever()
     except KeyboardInterrupt:
         # normal exit
         pass
     except socket.error as why:
-        print("Error binding to port", port, ":", why[1], file=sys.stderr)
+        print("绑定端口", port, "错误:", why, file=sys.stderr)
     except Exception as e:
-        print("Server error", e, file=sys.stderr)
+        print("服务器错误", e, file=sys.stderr)
         raise
     return 0
 

@@ -13,11 +13,16 @@ Author:     Pontus Stenetorp    <pontus is s u-tokyo ac jp>
 Version:    2011-04-21
 """
 
+
+import sys
 from errno import EACCES, ENOENT
 from itertools import chain
 from os import listdir
 from os.path import join as path_join
 from os.path import abspath, dirname, getmtime, isabs, isdir, normpath
+from session import get_session, invalidate_session
+
+import pysnooper
 
 from config import BASE_DIR, DATA_DIR
 
@@ -40,6 +45,8 @@ from projectconfig import (ARC_DRAWING_ATTRIBUTES, ATTR_DRAWING_ATTRIBUTES,
                            visual_options_get_arc_bundle,
                            visual_options_get_text_direction)
 from stats import get_statistics
+
+from dblite import DBlite, Ann_NULL, Ann_ING, Ann_DONE, Ann_CHECKED
 
 
 def _fill_type_configuration(
@@ -467,7 +474,9 @@ def _is_hidden(file_name):
 def _listdir(directory):
     # return listdir(directory)
     try:
+        # 文件目录控制
         assert_allowed_to_read(directory)
+
         return [f for f in listdir(directory) if not _is_hidden(f)
                 and allowed_to_read(path_join(directory, f))]
     except OSError as e:
@@ -551,20 +560,26 @@ def _inject_annotation_type_conf(dir_path, json_dic=None):
 
 # TODO: This is not the prettiest of functions
 
-
+#@pysnooper.snoop()
 def get_directory_information(collection):
     directory = collection
-
     real_dir = real_directory(directory)
-
     assert_allowed_to_read(real_dir)
 
     # Get the document names
-    base_names = [fn[0:-4] for fn in _listdir(real_dir)
-                  if fn.endswith('txt')]
+    user = get_session().get('user')
+    if user is None or user == 'guest':
+        base_names = []
+    elif user == 'ADMIN':
+        base_names = [fn[0:-4] for fn in _listdir(real_dir) if fn.endswith('txt')]
+    else:
+        db = DBlite()
+        base_names = db.get_AnnNull_files(directory)
+        names_ING = db.get_AnnING_files(directory, user)
+        base_names.extend(names_ING)
 
     doclist = base_names[:]
-    doclist_header = [("Document", "string")]
+    doclist_header = [("文档", "string")]
 
     # Then get the modification times
     doclist_with_time = []
@@ -573,21 +588,40 @@ def get_directory_information(collection):
                               file_name + "." + JOINED_ANN_FILE_SUFF)
         doclist_with_time.append([file_name, _getmtime(file_path)])
     doclist = doclist_with_time
-    doclist_header.append(("Modified", "time"))
+    doclist_header.append(("修改时间", "time"))
 
+    """
+        stats_types: [('Entities', 'int'), ('Relations', 'int'), ('Events', 'int')]
+        doc_stats: [[29, 0, 0], [97, 0, 0], [22, 0, 0], [8, 0, 0], [17, 0, 0], [22, 0, 0], [14, 0, 0], [24, 0, 0], [22, 0, 0], [21, 0, 0]]
+        doclist: [['ned.train-doc-184', 1555259780.624325, 29, 0, 0], ['ned.train-doc-181', 1555259780.623239, 97, 0, 0], ['ned.train-doc-236'
+    """
     try:
         stats_types, doc_stats = get_statistics(real_dir, base_names)
+        print("stats_types:", stats_types, file=sys.stderr)
+        print("doc_stats:", doc_stats, file=sys.stderr)
     except OSError:
         # something like missing access permissions?
         raise CollectionNotAccessibleError
 
     doclist = [doclist[i] + doc_stats[i] for i in range(len(doclist))]
+    print("doclist:", doclist, file=sys.stderr)
     doclist_header += stats_types
+    # doclist_header.append(("修改者", "string"))
+    print("doclist_header:", doclist_header, file=sys.stderr)
 
-    dirlist = [dir for dir in _listdir(real_dir)
-               if isdir(path_join(real_dir, dir))]
+    if user is None or user == 'guest':
+        dirlist = []
+    elif user == 'ADMIN':
+        dirlist = [dir for dir in _listdir(real_dir) if isdir(path_join(real_dir, dir))]
+    else: # for user ACL
+        dirlist = [dir for dir in _listdir(real_dir) if isdir(path_join(real_dir, dir))]
     # just in case, and for generality
     dirlist = [[dir] for dir in dirlist]
+    # print("---------------dirlist------------------", dirlist, file=sys.stderr)
+    # 打开最后的文件目录结构时出现
+    # 文件名  修改时间   实体 关系 事件
+    # [['esp.train-doc-46', 1555259780.6167455, 104, 0, 0], ['esp.train-doc-989', 1555259780.6174483, 34, 0, 0],
+    # print(doclist, file=sys.stderr)
 
     # check whether at root, ignoring e.g. possible trailing slashes
     if normpath(real_dir) != normpath(DATA_DIR):
@@ -879,6 +913,7 @@ def _document_json_dict(document):
     # Read in the textual data to make it ready to push
     _enrich_json_with_text(j_dic, document + '.' + TEXT_FILE_SUFFIX)
 
+    # 文档标注的位置获取
     with TextAnnotations(document) as ann_obj:
         # Note: At this stage the sentence offsets can conflict with the
         #   annotations, we thus merge any sentence offsets that lie within
@@ -911,13 +946,27 @@ def _document_json_dict(document):
     return j_dic
 
 
+# 获取文档
 def get_document(collection, document):
     directory = collection
     real_dir = real_directory(directory)
-    doc_path = path_join(real_dir, document)
-    return _document_json_dict(doc_path)
+    assert_allowed_to_read(real_dir)
+    doc_path = path_join(real_dir, document)    
+    # 标注用户更改为当前用户
+    user = get_session().get('user')
+    if user is None or user == 'guest':
+        return None
+    try:
+        db = DBlite()
+        # DB 中文件的更新,从未标注更改为正在标注状态
+        db.set_AnnING_file(directory, document, user)
+        return _document_json_dict(doc_path)
+    except:
+        # refresh ans show files in dir
+        pass
 
 
+# 获取文档时间
 def get_document_timestamp(collection, document):
     directory = collection
     real_dir = real_directory(directory)
@@ -925,6 +974,7 @@ def get_document_timestamp(collection, document):
     doc_path = path_join(real_dir, document)
     ann_path = doc_path + '.' + JOINED_ANN_FILE_SUFF
     mtime = _getmtime(ann_path)
+    print("document.py get_document_timestamp函数标注文件:", ann_path, mtime, file=sys.stderr)
 
     return {
         'mtime': mtime,
