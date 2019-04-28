@@ -147,7 +147,7 @@ def allowed_to_read(real_path):
 # TODO: Unittesting
 
 @pysnooper.snoop()
-def test():
+def test(text, docid, collection=None):
     try:
         user = get_session().get('user')
     except KeyError:
@@ -155,5 +155,5 @@ def test():
 
     if user is None:
         user = 'guest'
-    json_dic = {"message": "hello world", "user": user}
+    json_dic = {"message": "hello world", "user": user, "rontom": text}
     return json_dic
