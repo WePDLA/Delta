@@ -26,7 +26,7 @@ from convert.convert import convert
 from delete import delete_collection, delete_document
 from docimport import save_import
 from document import (get_configuration, get_directory_information,
-                      get_document, get_document_timestamp)
+                      get_document, get_document_timestamp, save_document)
 from download import download_collection, download_file
 from jsonwrap import dumps
 from message import Messager
@@ -56,6 +56,7 @@ DISPATCHER = {
     'getDocument': get_document,
     'getDocumentTimestamp': get_document_timestamp,
     'importDocument': save_import,
+    'submitDocument': save_document,
 
     'storeSVG': store_svg,
     'retrieveStored': retrieve_stored,
@@ -132,6 +133,7 @@ LOGGED_ANNOTATOR_ACTION = ANNOTATION_ACTION | set((
 REQUIRES_AUTHENTICATION = ANNOTATION_ACTION | set((
     # Document functionality
     'importDocument',
+    'submitDocument',
 
     # Search functionality in whole collection (heavy on the CPU/disk ATM)
     'searchTextInCollection',
