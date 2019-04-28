@@ -2749,9 +2749,11 @@ var AnnotatorUI = (function($, window, undefined) {
       });
 
       // 完成提交的操作。
-      $('#complete_submit').click(function() {
+      $('#complete_submit').click(function(evt) {
+        console.log("evt", evt);
+        // test = evt.currentTarget['baseURI'].split("/").pop();
         var _docid = "text_0";
-        var _doctext = "text_0";
+        var _doctext = evt.currentTarget['baseURI'].split("/").pop();
         var opts = {
           action : 'submitDocument',
           collection : coll,
@@ -2760,7 +2762,8 @@ var AnnotatorUI = (function($, window, undefined) {
         };
         dispatcher.post('ajax', [opts, function(response) {
           console.log(response);
-          alert(response['rontom']);
+          alert(response["rontom"]);
+          window.location.reload();
         },
         ]);
         { keep: true }
