@@ -59,11 +59,8 @@ var URLMonitor = (function($, window, undefined) {
           dispatcher.post('docChanged', [doc, oldDoc]);
         }
         setArguments(args || null);
-        console.log("选定文档...")
       };
 
-
-      // 选定后的操作
       var setCollection = function(coll, doc, args) {
         var oldColl = that.url_hash.collection;
         if (oldColl !== coll) {
@@ -94,7 +91,7 @@ var URLMonitor = (function($, window, undefined) {
           that.url_hash = new_url_hash;
           newIntArgs = {};
         }
-
+       
         dispatcher.post('current', [that.url_hash.collection,
             that.url_hash.document, that.url_hash.arguments, reloadData]);
         reloadData = true;
@@ -210,6 +207,7 @@ var URLHash = (function($, window, undefined) {
         // Remove the leading hash (#)
         hash = hash.substr(1);
       }
+      hash = decodeURIComponent(hash);
 
       var pathAndArgs = hash.split('?');
       var path = pathAndArgs[0] || '';

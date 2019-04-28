@@ -1,8 +1,14 @@
 // -*- Mode: JavaScript; tab-width: 2; indent-tabs-mode: nil; -*-
 // vim:set ft=javascript ts=2 sw=2 sts=2 cindent:
+
+// 该类究竟是干什么的？
 var Util = (function(window, undefined) {
 
+    var fontLoadTimeout = 1000; // 5 seconds
+
     var monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    var isMac = navigator.platform == 'MacIntel'; // XXX should we go broader?
 
     var cmp = function(a,b) {
       return a < b ? -1 : a > b ? 1 : 0;
@@ -288,23 +294,23 @@ var Util = (function(window, undefined) {
       // Check if we're already dealing with an array of colors
 //         if ( color && color.constructor == Array && color.length == 3 )
 //             return color;
-      
+
       // Look for rgb(num,num,num)
       if (result = rgbNumRE.exec(color))
         return [parseInt(result[1]), parseInt(result[2]), parseInt(result[3])];
-      
+
       // Look for rgb(num%,num%,num%)
       if (result = rgbPercRE.exec(color))
         return [parseFloat(result[1])*2.55, parseFloat(result[2])*2.55, parseFloat(result[3])*2.55];
-      
+
       // Look for #a0b1c2
       if (result = rgbHash6RE.exec(color))
         return [parseInt(result[1],16), parseInt(result[2],16), parseInt(result[3],16)];
-      
+
       // Look for #fff
       if (result = rgbHash3RE.exec(color))
         return [parseInt(result[1]+result[1],16), parseInt(result[2]+result[2],16), parseInt(result[3]+result[3],16)];
-      
+
       // Otherwise, we're most likely dealing with a named color
       return colors[$.trim(color).toLowerCase()];
     }
@@ -317,11 +323,11 @@ var Util = (function(window, undefined) {
       // pad
       r = r.length < 2 ? '0' + r : r;
       g = g.length < 2 ? '0' + g : g;
-      b = b.length < 2 ? '0' + b : b;        
+      b = b.length < 2 ? '0' + b : b;
       return ('#'+r+g+b);
     }
-    
-    // Functions rgbToHsl and hslToRgb originally from 
+
+    // Functions rgbToHsl and hslToRgb originally from
     // http://mjijackson.com/2008/02/rgb-to-hsl-and-rgb-to-hsv-color-model-conversion-algorithms-in-javascript
     // implementation of functions in Wikipedia
     // (with slight modifications)
@@ -344,7 +350,7 @@ var Util = (function(window, undefined) {
         }
         h /= 6;
       }
-      
+
       return [h, s, l];
     }
 
@@ -371,7 +377,7 @@ var Util = (function(window, undefined) {
         g = hue2rgb(p, q, h);
         b = hue2rgb(p, q, h - 1/3);
       }
-      
+
       return [r * 255, g * 255, b * 255];
     }
 
@@ -544,8 +550,11 @@ var Util = (function(window, undefined) {
     // docData: the document data (in the format of the result of
     //   http://.../brat/ajax.cgi?action=getDocument&collection=...&document=...
     // returns the embedded visualizer's dispatcher object
-    var embed = function(container, collData, docData, webFontURLs) {
-      var dispatcher = new Dispatcher();
+    var embed = function(container, collData, docData, webFontURLs,
+                         dispatcher) {
+      if (dispatcher === undefined) {
+          dispatcher = new Dispatcher();
+      }
       var visualizer = new Visualizer(dispatcher, container, webFontURLs);
       docData.collection = null;
       dispatcher.post('collectionLoaded', [collData]);
@@ -560,11 +569,11 @@ var Util = (function(window, undefined) {
     //   simple `embed` instead)
     // callback: optional; the callback to call afterwards; it will be
     //   passed the embedded visualizer's dispatcher object
-    var embedByURL = function(container, collDataURL, docDataURL, callback) {
+    var embedByURL = function(container, collDataURL, docDataURL, webFontURLs, callback) {
       var collData, docData;
       var handler = function() {
         if (collData && docData) {
-          var dispatcher = embed(container, collData, docData);
+          var dispatcher = embed(container, collData, docData, webFontURLs);
           if (callback) callback(dispatcher);
         }
       };
@@ -574,6 +583,78 @@ var Util = (function(window, undefined) {
         collData = collDataURL;
       }
       $.getJSON(docDataURL, function(data) { docData = data; handler(); });
+    };
+
+    var fontsLoaded = false;
+    var fontNotifyList = false;
+
+    var proceedWithFonts = function() {
+      if (fontsLoaded) return;
+
+      fontsLoaded = true;
+      $.each(fontNotifyList, function(dispatcherNo, dispatcher) {
+        dispatcher.post('triggerRender');
+      });
+      fontNotifyList = null;
+    };
+
+    var loadFonts = function(webFontURLs, dispatcher) {
+      if (fontsLoaded) {
+        dispatcher.post('triggerRender');
+        return;
+      }
+
+      if (fontNotifyList) {
+        fontNotifyList.push(dispatcher);
+        return;
+      }
+
+      fontNotifyList = [dispatcher];
+
+      webFontURLs = webFontURLs || [
+        'static/fonts/Astloch-Bold.ttf',
+        'static/fonts/PT_Sans-Caption-Web-Regular.ttf',
+        'static/fonts/Liberation_Sans-Regular.ttf'
+      ];
+
+      var families = [];
+      $.each(webFontURLs, function(urlNo, url) {
+        if (/Astloch/i.test(url)) families.push('Astloch');
+        else if (/PT.*Sans.*Caption/i.test(url)) families.push('PT Sans Caption');
+        else if (/Liberation.*Sans/i.test(url)) families.push('Liberation Sans');
+      });
+
+      webFontURLs = {
+        families: families,
+        urls: webFontURLs
+      }
+
+      var webFontConfig = {
+        custom: webFontURLs,
+        active: proceedWithFonts,
+        inactive: proceedWithFonts,
+        fontactive: function(fontFamily, fontDescription) {
+          // Note: Enable for font debugging
+          // console.log("font active: ", fontFamily, fontDescription);
+        },
+        fontloading: function(fontFamily, fontDescription) {
+          // Note: Enable for font debugging
+          // console.log("font loading:", fontFamily, fontDescription);
+        },
+      };
+
+      WebFont.load(webFontConfig);
+
+      setTimeout(function() {
+        if (!fontsLoaded) {
+          console.error('Timeout in loading fonts');
+          proceedWithFonts();
+        }
+      }, fontLoadTimeout);
+    };
+
+    var areFontsLoaded = function() {
+      return fontsLoaded;
     };
 
 
@@ -604,6 +685,9 @@ var Util = (function(window, undefined) {
       deparam: deparam,
       embed: embed,
       embedByURL: embedByURL,
+      isMac: isMac,
+      loadFonts: loadFonts,
+      areFontsLoaded: areFontsLoaded,
     };
 
 })(window);
