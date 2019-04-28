@@ -106,10 +106,10 @@ class DBlite():
             print("Exception in _query: %s" % e, file=sys.stderr)
             self.conn.rollback()
         finally:
-            cursor.close()   
-        
+            cursor.close()
+
     def set_AnnING_file(self, directory, file, user):
-        real_dir = real_directory(directory)        
+        real_dir = real_directory(directory)
         assert_allowed_to_read(real_dir)
         # check and update
         lock_slqite3.acquire()
@@ -128,7 +128,7 @@ class DBlite():
                 cursor.execute("""UPDATE Ann SET userName = ?, state = ? WHERE fileDirAbs = ? and  fileName = ?;""", (user, Ann_ING, directory, file))
                 self.conn.commit()
         except sqlite3.Error as e:
-            print("Database error: %s" % e, file=sys.stderr) 
+            print("Database error: %s" % e, file=sys.stderr)
             self.conn.rollback()
         except Exception as e:
             print("Exception in _query: %s" % e, file=sys.stderr)
@@ -228,7 +228,24 @@ class DBlite():
             print("Exception in _query: %s" % e, file=sys.stderr)
         finally:
             cursor.close()
-            
+
+    def comlete_Ann_files(self, directory, file, user):
+        real_dir = real_directory(directory)
+        assert_allowed_to_read(real_dir)
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute("""UPDATE Ann SET state = ? WHERE fileName = ? and userName=?;""",
+                           (Ann_DONE, file, user))
+            self.conn.commit();
+            rows = cursor.fetchall()
+            return [row[0] for row in rows]
+        except sqlite3.Error as e:
+            print("Database error: %s" % e, file=sys.stderr)
+        except Exception as e:
+            print("Exception in _query: %s" % e, file=sys.stderr)
+        finally:
+            cursor.close()
+
     def show_db(self):
         try:
             cursor = self.conn.cursor()
