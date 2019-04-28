@@ -683,6 +683,29 @@ def get_directory_information(collection):
     })
 
 
+@pysnooper.snoop()
+def save_document(text, docid, collection=None):
+    directory = collection
+    real_dir = real_directory(directory)
+    assert_allowed_to_read(real_dir)
+    json_dic = {}
+    file = text
+    try:
+        user = get_session().get('user')
+    except KeyError:
+        user = None
+    if user is None:
+        user = 'guest'
+    else:
+        db = DBlite()
+        names_complete = db.comlete_Ann_files(directory, file, user)
+        print("names_ING", names_complete, file=sys.stderr)
+
+    json_dic = {"message": "保存完成！", "user": user, "rontom": text, 'collection': directory}
+    Messager.info("保存完成")
+    return json_dic
+
+
 class UnableToReadTextFile(ProtocolError):
     def __init__(self, path):
         self.path = path
