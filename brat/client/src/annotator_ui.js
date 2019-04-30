@@ -2196,6 +2196,7 @@ var AnnotatorUI = (function($, window, undefined) {
           var $button = $('<input id="tag_'+Util.escapeHTML(taggerId)+'_button" type="button" value="'+Util.escapeHTML(taggerModel)+'" tabindex="-1" title="Automatically tag the current document."/>');
           $row.append($label).append($button);
           $taggerButtons.append($row);
+          // 调取模型点击操作
           $button.click(function(evt) {
             tagCurrentDocument(taggerId);
           });
