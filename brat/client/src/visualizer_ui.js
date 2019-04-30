@@ -634,9 +634,19 @@ var VisualizerUI = (function($, window, undefined) {
         if (!currentForm) return;
         // currentForm.fadeOut(function() { currentForm = null; });
         currentForm.dialog('close');
+         // http://localhost:8001/index.xhtml#/test_files/text_3#collection_browser
+          window.location.reload();
         currentForm = null;
       };
 
+      var hideCollectionForm = function() {
+        if (!currentForm) return;
+        // currentForm.fadeOut(function() { currentForm = null; });
+        currentForm.dialog('close');
+         // http://localhost:8001/index.xhtml#/test_files/text_3#collection_browser
+          window.location.reload();
+        currentForm = null;
+      };
       /* END form management - related */
 
 
@@ -923,10 +933,11 @@ var VisualizerUI = (function($, window, undefined) {
         }, 0);
       }; // end showFileBrowser()
       $('#collection_browser_button').click(function(evt) {
+        // $("#document_select").load("http://localhost:8001/index.xhtml#/test_files/text_3");//注意后面DIV的ID前面的空格，很重要！没有空格的话，会出双眼皮！（也可以使用类名
         console.log("----------evt---------", evt);
         console.log("#collection_browser_button evt", evt.currentTarget['baseURI']);
         // 点击数据集的时候触发
-        // $("#document_select").load(evt.currentTarget['baseURI']);
+        //$("#document_select").load(evt.currentTarget['baseURI']+'#document_select');
         dispatcher.post('clearSearch');
 
       });
@@ -1641,6 +1652,7 @@ var VisualizerUI = (function($, window, undefined) {
       };
 
       var clearSearch = function(dontShowFileBrowser) {
+        // window.location.reload();
         dispatcher.post('hideForm');
 
         // back off to document collection
