@@ -8,7 +8,7 @@ from os.path import isabs
 from os.path import join as path_join
 from auth import AccessDeniedError, allowed_to_read
 from config import BASE_DIR, DATA_DIR
-
+from time import sleep
 
 DB_FNAME = 'lite.db'
 
@@ -157,6 +157,7 @@ But none of these changes will commit until the original SELECT statement finish
             cursor.execute("""BEGIN TRANSACTION""") 
             cursor.execute("""SELECT userName FROM Ann WHERE fileDirAbs = ? and  fileName = ?;""", (directory, file))
             rows = cursor.fetchall()
+            sleep(10)
             # 分配给单个用户标注
             if len(rows) == 1 and None in rows[0]:
                 cursor.execute("""UPDATE Ann SET userName = ?, state = ? WHERE fileDirAbs = ? and  fileName = ?;""", (user, Ann_ING, directory, file))
