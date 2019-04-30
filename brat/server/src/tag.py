@@ -89,6 +89,7 @@ def _is_normalization(ann):
     return 'target' in ann
 
 
+# 该标注用于自动标注
 def tag(collection, document, tagger):
     pconf = ProjectConfiguration(real_directory(collection))
     for tagger_token, _, _, tagger_service_url in pconf.get_annotator_config():
