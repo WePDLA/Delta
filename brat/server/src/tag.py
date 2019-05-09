@@ -9,8 +9,11 @@ Version:    2011-04-22
 """
 
 
+import sys
+import pysnooper
 
 from http.client import HTTPConnection
+import http
 from os.path import join as path_join
 from socket import error as SocketError
 from urllib.parse import urlparse
@@ -90,8 +93,151 @@ def _is_normalization(ann):
 
 
 # 该标注用于自动标注
+# def tag(collection, document, tagger):
+@pysnooper.snoop()
 def tag(collection, document, tagger):
     pconf = ProjectConfiguration(real_directory(collection))
+    # print("pconf", pconf, file=sys.stderr)
+    for tagger_token, _, _, tagger_service_url in pconf.get_annotator_config():
+        if tagger == tagger_token:
+            break
+    else:
+        raise UnknownTaggerError(tagger)
+
+    path_join(real_directory(collection), document)
+
+    # print("tagger_service_url", tagger_service_url, file=sys.stderr)
+    # print("tagger_token", tagger_token, file=sys.stderr)
+    with TextAnnotations(path_join(real_directory(collection),
+                                   document)) as ann_obj:
+        # print("ann_obj", ann_obj, file=sys.stderr)
+
+        url_soup = urlparse(tagger_service_url)
+
+
+        if url_soup.scheme == 'http':
+            Connection = HTTPConnection
+            # print("HTTPConnection", HTTPConnection, file=sys.stderr)
+        elif url_soup.scheme == 'https':
+            # Delayed HTTPS import since it relies on SSL which is commonly
+            #   missing if you roll your own Python, for once we should not
+            #   fail early since tagging is currently an edge case and we
+            #   can't allow it to bring down the whole server.
+            from http.client import HTTPSConnection
+            Connection = HTTPSConnection
+        else:
+            raise InvalidConnectionSchemeError(tagger_token, url_soup.scheme)
+
+        conn = None
+        try:
+            conn = Connection(url_soup.netloc)
+            req_headers = {
+                'Content-type': 'text/plain; charset=utf-8',
+                'Accept': 'application/json',
+            }
+            # Build a new service URL since the request method doesn't accept
+            #   a parameters argument
+            service_url = url_soup.path + (
+                '?' + url_soup.query if url_soup.query else '')
+            try:
+                data = ann_obj.get_document_text().encode('utf-8')
+
+                # print("data", ann_obj.get_document_text(), file=sys.stderr)
+                req_headers['Content-length'] = len(data)
+                # Note: Trout slapping for anyone sending Unicode objects here
+                conn.request('POST',
+                             # As per: http://bugs.python.org/issue11898
+                             # Force the url to be an ascii string
+                             str(service_url),
+                             data,
+                             headers=req_headers)
+                # httpConnection = http.client.HTTPConnection(url_soup.netloc)
+                # httpConnection.request('GET', str(service_url), headers=req_headers)
+                # response = httpConnection.getresponse()
+
+
+
+            except SocketError as e:
+                raise TaggerConnectionError(tagger_token, e)
+            resp = conn.getresponse()
+            print("resp-------------", resp.read(), file=sys.stderr)
+
+
+            # Did the request succeed?
+            if resp.status != 200:
+                raise TaggerConnectionError(
+                    tagger_token, '%s %s' %
+                    (resp.status, resp.reason))
+            # Finally, we can read the response data
+            resp_data = resp.read()
+        finally:
+            if conn is not None:
+                conn.close()
+
+        try:
+            json_resp = loads(resp_data)
+            print("json_resp", json_resp, file=sys.stderr)
+        except ValueError:
+            raise InvalidTaggerResponseError(tagger_token, resp_data)
+
+        mods = ModificationTracker()
+        cidmap = {}
+
+
+        for cid, ann in ((i, a) for i, a in json_resp.items()
+                         if _is_textbound(a)):
+            assert 'offsets' in ann, 'Tagger response lacks offsets'
+            offsets = ann['offsets']
+            assert 'type' in ann, 'Tagger response lacks type'
+            _type = ann['type']
+            assert 'texts' in ann, 'Tagger response lacks texts'
+            texts = ann['texts']
+
+            # sanity
+            assert len(offsets) != 0, 'Tagger response has empty offsets'
+            assert len(texts) == len(
+                offsets), 'Tagger response has different numbers of offsets and texts'
+
+            start, end = offsets[0]
+            text = texts[0]
+            print("offsets, _type, texts, text:", offsets, _type, texts, text, file=sys.stderr)
+            _id = ann_obj.get_new_id('T')
+            cidmap[cid] = _id
+
+            tb = TextBoundAnnotationWithText(
+                offsets, _id, _type, text, " " + ' '.join(texts[1:]))
+
+            mods.addition(tb)
+            ann_obj.add_annotation(tb)
+
+        for norm in (a for a in json_resp.values()
+                     if _is_normalization(a)):
+            try:
+                _type = norm['type']
+                target = norm['target']
+                refdb = norm['refdb']
+                refid = norm['refid']
+            except KeyError as e:
+                raise  # TODO
+
+            _id = ann_obj.get_new_id('N')
+            target = cidmap[target]
+
+            na = NormalizationAnnotation(_id, _type, target, refdb, refid, '')
+
+            mods.addition(na)
+            ann_obj.add_annotation(na)
+
+        mod_resp = mods.json_response()
+        mod_resp['annotations'] = _json_from_ann(ann_obj)
+        return mod_resp
+
+def tag1():
+    collection = "/data/test_files"
+    document = "test_0"
+    tagger=1
+    pconf = ProjectConfiguration(real_directory(collection))
+    print("pconf", pconf, file=sys.stderr)
     for tagger_token, _, _, tagger_service_url in pconf.get_annotator_config():
         if tagger == tagger_token:
             break
@@ -146,7 +292,7 @@ def tag(collection, document, tagger):
             if resp.status != 200:
                 raise TaggerConnectionError(
                     tagger_token, '%s %s' %
-                    (resp.status, resp.reason))
+                                  (resp.status, resp.reason))
             # Finally, we can read the response data
             resp_data = resp.read()
         finally:
@@ -208,6 +354,8 @@ def tag(collection, document, tagger):
         mod_resp = mods.json_response()
         mod_resp['annotations'] = _json_from_ann(ann_obj)
         return mod_resp
+
+
 
 
 if __name__ == '__main__':
