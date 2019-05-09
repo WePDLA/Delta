@@ -61,7 +61,7 @@ def download_collection(collection, include_conf=False):
     dir_name = basename(dirname(real_dir))
     fname = '%s.%s' % (dir_name, 'tar.gz')
 
-    confs = ['annotation.conf', 'visual.conf', 'tools.conf',
+    confs = ['annotation1.conf', 'visual1.conf', 'tools.conf',
              'kb_shortcuts.conf']
 
     try:

@@ -386,7 +386,7 @@ class TypeHierarchyNode:
                     raise InvalidProjectConfigException
 
                 # Check disabled; need to support arbitrary UTF values
-                # for visual.conf. TODO: add this check for other configs.
+                # for visual1.conf. TODO: add this check for other configs.
                 # TODO: consider checking for similar for appropriate confs.
 #                 if atype not in reserved_config_string and normalize_to_storage_form(atype) != atype:
 #                     Messager.warning("Project configuration: '%s' is not a valid argument (should match '^[a-zA-Z0-9_-]*$')" % atype, 5)
@@ -1148,7 +1148,7 @@ def options_get_annlogfile(directory):
     v = get_option_config_by_storage_form(directory, 'Annotation-log')
     return '<NONE>' if v is None else v.get('logfile', '<NONE>')
 
-# access for settings for specific options in visual.conf
+# access for settings for specific options in visual1.conf
 
 
 def visual_options_get_arc_bundle(directory):

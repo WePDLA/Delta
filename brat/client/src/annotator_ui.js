@@ -2197,7 +2197,11 @@ var AnnotatorUI = (function($, window, undefined) {
           $row.append($label).append($button);
           $taggerButtons.append($row);
           // 调取模型点击操作
+
           $button.click(function(evt) {
+            //alert(111);
+            //  alert(111);
+
             tagCurrentDocument(taggerId);
           });
         });

@@ -9,6 +9,8 @@ from os.path import join as path_join
 from auth import AccessDeniedError, allowed_to_read
 from config import BASE_DIR, DATA_DIR
 
+from message import Messager
+
 
 DB_FNAME = 'lite.db'
 
@@ -60,42 +62,42 @@ def _listdir(directory):
 class DBlite():
     """
     Transaction Control At The SQL Level
-The changes to locking and concurrency control in SQLite version 3 also 
-introduce some subtle changes in the way transactions work at the SQL 
-language level. By default, SQLite version 3 operates in autocommit mode. 
-In autocommit mode, all changes to the database are committed as soon as 
+The changes to locking and concurrency control in SQLite version 3 also
+introduce some subtle changes in the way transactions work at the SQL
+language level. By default, SQLite version 3 operates in autocommit mode.
+In autocommit mode, all changes to the database are committed as soon as
 all operations associated with the current database connection complete.
 
-The SQL command "BEGIN TRANSACTION" (the TRANSACTION keyword is optional) 
-is used to take SQLite out of autocommit mode. Note that the BEGIN command 
-does not acquire any locks on the database. After a BEGIN command, a SHARED 
-lock will be acquired when the first SELECT statement is executed. A RESERVED 
-lock will be acquired when the first INSERT, UPDATE, or DELETE statement is 
-executed. No EXCLUSIVE lock is acquired until either the memory cache fills 
-up and must be spilled to disk or until the transaction commits. In this way, 
-the system delays blocking read access to the file file until the last possible 
+The SQL command "BEGIN TRANSACTION" (the TRANSACTION keyword is optional)
+is used to take SQLite out of autocommit mode. Note that the BEGIN command
+does not acquire any locks on the database. After a BEGIN command, a SHARED
+lock will be acquired when the first SELECT statement is executed. A RESERVED
+lock will be acquired when the first INSERT, UPDATE, or DELETE statement is
+executed. No EXCLUSIVE lock is acquired until either the memory cache fills
+up and must be spilled to disk or until the transaction commits. In this way,
+the system delays blocking read access to the file file until the last possible
 moment.
 
-The SQL command "COMMIT" does not actually commit the changes to disk. It just 
-turns autocommit back on. Then, at the conclusion of the command, the regular 
-autocommit logic takes over and causes the actual commit to disk to occur. The 
-SQL command "ROLLBACK" also operates by turning autocommit back on, but it also 
+The SQL command "COMMIT" does not actually commit the changes to disk. It just
+turns autocommit back on. Then, at the conclusion of the command, the regular
+autocommit logic takes over and causes the actual commit to disk to occur. The
+SQL command "ROLLBACK" also operates by turning autocommit back on, but it also
 sets a flag that tells the autocommit logic to rollback rather than commit.
 
-If the SQL COMMIT command turns autocommit on and the autocommit logic then 
-tries to commit change but fails because some other process is holding a SHARED 
-lock, then autocommit is turned back off automatically. This allows the user to 
-retry the COMMIT at a later time after the SHARED lock has had an opportunity 
+If the SQL COMMIT command turns autocommit on and the autocommit logic then
+tries to commit change but fails because some other process is holding a SHARED
+lock, then autocommit is turned back off automatically. This allows the user to
+retry the COMMIT at a later time after the SHARED lock has had an opportunity
 to clear.
 
-If multiple commands are being executed against the same SQLite database connection 
-at the same time, the autocommit is deferred until the very last command completes. 
-For example, if a SELECT statement is being executed, the execution of the command 
-will pause as each row of the result is returned. During this pause other INSERT, 
-UPDATE, or DELETE commands can be executed against other tables in the database. 
+If multiple commands are being executed against the same SQLite database connection
+at the same time, the autocommit is deferred until the very last command completes.
+For example, if a SELECT statement is being executed, the execution of the command
+will pause as each row of the result is returned. During this pause other INSERT,
+UPDATE, or DELETE commands can be executed against other tables in the database.
 But none of these changes will commit until the original SELECT statement finishes.
     """
-    
+
     def __init__(self):
         # 连接到SQLite数据库
         # 数据库文件是DB_FNAME，如果文件不存在，会自动在当前目录创建
@@ -109,11 +111,13 @@ But none of these changes will commit until the original SELECT statement finish
             cursor.execute(_CREATE_ANN_SQL)
             self.conn.commit()
         except sqlite3.Error as e:
-            print("Database error: %s" % e, file=sys.stderr)
+            # print("Database error: %s" % e, file=sys.stderr)
+            Messager.error("Database error: %s" % e)
             self.conn.rollback()
             self.conn.close()
         except Exception as e:
-            print("Exception in _query: %s" % e, file=sys.stderr)
+            # print("Exception in _query: %s" % e, file=sys.stderr)
+            Messager.error("Exception in _query: %s" % e)
             self.conn.rollback()
             self.conn.close()
         finally:
@@ -140,10 +144,12 @@ But none of these changes will commit until the original SELECT statement finish
                 cursor.execute(_INSERT_ANN_SQL, (state, fid, fileName, fileDirAbs, uid, userName))
             self.conn.commit()
         except sqlite3.Error as e:
-            print("Database error: %s" % e, file=sys.stderr)
+            # print("Database error: %s" % e, file=sys.stderr)
+            Messager.error("Database error: %s" % e)
             self.conn.rollback()
         except Exception as e:
-            print("Exception in _query: %s" % e, file=sys.stderr)
+            # print("Exception in _query: %s" % e, file=sys.stderr)
+            Messager.error("Exception in _query: %s" % e)
             self.conn.rollback()
         finally:
             cursor.close()
@@ -154,17 +160,19 @@ But none of these changes will commit until the original SELECT statement finish
         # check and update
         try:
             cursor = self.conn.cursor()
-            cursor.execute("""BEGIN TRANSACTION""") 
+            cursor.execute("""BEGIN TRANSACTION""")
             cursor.execute("""SELECT userName FROM Ann WHERE fileDirAbs = ? and  fileName = ?;""", (directory, file))
             rows = cursor.fetchall()
             # 分配给单个用户标注
             if len(rows) == 1 and None in rows[0]:
                 cursor.execute("""UPDATE Ann SET userName = ?, state = ? WHERE fileDirAbs = ? and  fileName = ?;""", (user, Ann_ING, directory, file))
         except sqlite3.Error as e:
-            print("Database error: %s" % e, file=sys.stderr)
+            # print("Database error: %s" % e, file=sys.stderr)
+            Messager.error("Database error: %s" % e)
             self.conn.rollback()
         except Exception as e:
-            print("Exception in _query: %s" % e, file=sys.stderr)
+            # print("Exception in _query: %s" % e, file=sys.stderr)
+            Messager.error("Exception in _query: %s" % e)
             self.conn.rollback()
         finally:
             cursor.execute("COMMIT")
@@ -177,16 +185,18 @@ But none of these changes will commit until the original SELECT statement finish
         # check and update
         try:
             cursor = self.conn.cursor()
-            cursor.execute("""BEGIN TRANSACTION""") 
+            cursor.execute("""BEGIN TRANSACTION""")
             cursor.execute("""SELECT userName FROM Ann WHERE fileDirAbs = ? and  fileName = ?;""", (directory, file))
             rows = cursor.fetchall()
             if len(rows) == 0:
                 cursor.execute("""UPDATE Ann SET userName = ? WHERE fileDirAbs = ? and  fileName = ?;""", (user, directory, file))
         except sqlite3.Error as e:
-            print("Database error: %s" % e, file=sys.stderr)
+            # print("Database error: %s" % e, file=sys.stderr)
+            Messager.error("Database error: %s" % e)
             self.conn.rollback()
         except Exception as e:
-            print("Exception in _query: %s" % e, file=sys.stderr)
+            # print("Exception in _query: %s" % e, file=sys.stderr)
+            Messager.error("Exception in _query: %s" % e)
             self.conn.rollback()
         finally:
             cursor.execute("COMMIT")
@@ -198,16 +208,18 @@ But none of these changes will commit until the original SELECT statement finish
         # check and update
         try:
             cursor = self.conn.cursor()
-            cursor.execute("""BEGIN TRANSACTION""") 
+            cursor.execute("""BEGIN TRANSACTION""")
             cursor.execute("""SELECT userName FROM Ann WHERE fileDirAbs = ? and  fileName = ?;""", (directory, file))
             rows = cursor.fetchall()
             if len(rows) == 0:
                 cursor.execute("""UPDATE Ann SET state = ? WHERE fileDirAbs = ? and  fileName = ?;""", (state, directory, file))
         except sqlite3.Error as e:
-            print("Database error: %s" % e, file=sys.stderr)
+            # print("Database error: %s" % e, file=sys.stderr)
+            Messager.error("Database error: %s" % e)
             self.conn.rollback()
         except Exception as e:
-            print("Exception in _query: %s" % e, file=sys.stderr)
+            # print("Exception in _query: %s" % e, file=sys.stderr)
+            Messager.error("Exception in _query: %s" % e)
             self.conn.rollback()
         finally:
             cursor.execute("COMMIT")
@@ -223,9 +235,11 @@ But none of these changes will commit until the original SELECT statement finish
             rows = cursor.fetchall()
             return [row[0] for row in rows]
         except sqlite3.Error as e:
-            print("Database error: %s" % e, file=sys.stderr)
+            # print("Database error: %s" % e, file=sys.stderr)
+            Messager.error("Database error: %s" % e)
         except Exception as e:
-            print("Exception in _query: %s" % e, file=sys.stderr)
+            # print("Exception in _query: %s" % e, file=sys.stderr)
+            Messager.error("Exception in _query: %s" % e)
         finally:
             cursor.close()
 
@@ -238,9 +252,11 @@ But none of these changes will commit until the original SELECT statement finish
             rows = cursor.fetchall()
             return [row[0] for row in rows]
         except sqlite3.Error as e:
-            print("Database error: %s" % e, file=sys.stderr)
+            # print("Database error: %s" % e, file=sys.stderr)
+            Messager.error("Database error: %s" % e)
         except Exception as e:
-            print("Exception in _query: %s" % e, file=sys.stderr)
+            # print("Exception in _query: %s" % e, file=sys.stderr)
+            Messager.error("Exception in _query: %s" % e)
         finally:
             cursor.close()
 
@@ -254,9 +270,11 @@ But none of these changes will commit until the original SELECT statement finish
             rows = cursor.fetchall()
             return [row[0] for row in rows]
         except sqlite3.Error as e:
-            print("Database error: %s" % e, file=sys.stderr)
+            # print("Database error: %s" % e, file=sys.stderr)
+            Messager.error("Database error: %s" % e)
         except Exception as e:
-            print("Exception in _query: %s" % e, file=sys.stderr)
+            # print("Exception in _query: %s" % e, file=sys.stderr)
+            Messager.error("Exception in _query: %s" % e)
         finally:
             cursor.close()
 
@@ -271,9 +289,11 @@ But none of these changes will commit until the original SELECT statement finish
             rows = cursor.fetchall()
             return [row[0] for row in rows]
         except sqlite3.Error as e:
-            print("Database error: %s" % e, file=sys.stderr)
+            # print("Database error: %s" % e, file=sys.stderr)
+            Messager.error("Database error: %s" % e)
         except Exception as e:
-            print("Exception in _query: %s" % e, file=sys.stderr)
+            # print("Exception in _query: %s" % e, file=sys.stderr)
+            Messager.error("Exception in _query: %s" % e)
         finally:
             cursor.close()
 
@@ -286,9 +306,11 @@ But none of these changes will commit until the original SELECT statement finish
             for r in rows:
                 print(r, file=sys.stderr)
         except sqlite3.Error as e:
-            print("Database error: %s" % e, file=sys.stderr)
+            # print("Database error: %s" % e, file=sys.stderr)
+            Messager.error("Database error: %s" % e)
         except Exception as e:
-            print("Exception in _query: %s" % e, file=sys.stderr)
+            # print("Exception in _query: %s" % e, file=sys.stderr)
+            Messager.error("Exception in _query: %s" % e)
         finally:
             cursor.close()
 
