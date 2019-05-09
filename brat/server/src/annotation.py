@@ -5,6 +5,7 @@
 from __future__ import with_statement
 
 import sys
+import pysnooper
 
 from codecs import open as codecs_open
 from itertools import chain, takewhile
@@ -20,6 +21,7 @@ from filelock import FileLock
 
 from common import ProtocolError
 from message import Messager
+
 
 '''
 与标注文件格式相关的功能。在该文件中可获取文件标注实体的数量。
@@ -1081,6 +1083,7 @@ class Annotations(object):
         pass
 
 
+
 class TextAnnotations(Annotations):
     """Text-bound 标注储存.
 
@@ -1105,6 +1108,7 @@ class TextAnnotations(Annotations):
 
         Annotations.__init__(self, document, read_only)
 
+    @pysnooper.snoop()
     def _parse_textbound_annotation(
             self, id, data, data_tail, input_file_path):
         type, spans = self._split_textbound_data(id, data, input_file_path)
