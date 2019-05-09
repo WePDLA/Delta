@@ -635,7 +635,7 @@ var VisualizerUI = (function($, window, undefined) {
         // currentForm.fadeOut(function() { currentForm = null; });
         currentForm.dialog('close');
          // http://localhost:8001/index.xhtml#/test_files/text_3#collection_browser
-          window.location.reload();
+          //window.location.reload();
         currentForm = null;
       };
 
@@ -1653,7 +1653,7 @@ var VisualizerUI = (function($, window, undefined) {
 
       var clearSearch = function(dontShowFileBrowser) {
         // window.location.reload();
-        dispatcher.post('hideForm');
+        dispatcher.post('hidecollectionForm');
 
         // back off to document collection
         if (searchActive) {
