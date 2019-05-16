@@ -94,10 +94,10 @@ def _is_normalization(ann):
 
 # 该标注用于自动标注
 # def tag(collection, document, tagger):
-@pysnooper.snoop()
+# @pysnooper.snoop()
 def tag(collection, document, tagger):
     pconf = ProjectConfiguration(real_directory(collection))
-    # print("pconf", pconf, file=sys.stderr)
+    print("tagger", tagger, file=sys.stderr)
     for tagger_token, _, _, tagger_service_url in pconf.get_annotator_config():
         if tagger == tagger_token:
             break
@@ -106,11 +106,11 @@ def tag(collection, document, tagger):
 
     path_join(real_directory(collection), document)
 
-    # print("tagger_service_url", tagger_service_url, file=sys.stderr)
+    # print("path_join(real_directory(collection), document)", path_join(real_directory(collection), document), file=sys.stderr)
     # print("tagger_token", tagger_token, file=sys.stderr)
     with TextAnnotations(path_join(real_directory(collection),
                                    document)) as ann_obj:
-        # print("ann_obj", ann_obj, file=sys.stderr)
+        # print("ann_obj", document, file=sys.stderr)
 
         url_soup = urlparse(tagger_service_url)
 
@@ -140,9 +140,12 @@ def tag(collection, document, tagger):
             service_url = url_soup.path + (
                 '?' + url_soup.query if url_soup.query else '')
             try:
-                data = ann_obj.get_document_text().encode('utf-8')
+                # Note: Trout slapping for anyone sending Unicode objects here
 
-                # print("data", ann_obj.get_document_text(), file=sys.stderr)
+                data = str(path_join(real_directory(collection), document))+"#*^$#"+ann_obj.get_document_text()
+                data = data.encode('utf-8')
+                # print("data", type(data),data, file=sys.stderr)
+                # print("data", ann_obj, file=sys.stderr)
                 req_headers['Content-length'] = len(data)
                 # Note: Trout slapping for anyone sending Unicode objects here
                 conn.request('POST',
@@ -160,7 +163,7 @@ def tag(collection, document, tagger):
             except SocketError as e:
                 raise TaggerConnectionError(tagger_token, e)
             resp = conn.getresponse()
-            print("resp-------------", resp.read(), file=sys.stderr)
+            # print("resp-------------", resp.read(), file=sys.stderr)
 
 
             # Did the request succeed?
@@ -176,18 +179,19 @@ def tag(collection, document, tagger):
 
         try:
             json_resp = loads(resp_data)
-            print("json_resp", json_resp, file=sys.stderr)
+            # print("json_resp", json_resp, file=sys.stderr)
         except ValueError:
             raise InvalidTaggerResponseError(tagger_token, resp_data)
 
         mods = ModificationTracker()
         cidmap = {}
 
-
+        # print("json_resp.items:::::::::::::", json_resp.items(), file=sys.stderr)
         for cid, ann in ((i, a) for i, a in json_resp.items()
                          if _is_textbound(a)):
             assert 'offsets' in ann, 'Tagger response lacks offsets'
             offsets = ann['offsets']
+            # print("json_resp.items:::::::::::::", offsets, file=sys.stderr)
             assert 'type' in ann, 'Tagger response lacks type'
             _type = ann['type']
             assert 'texts' in ann, 'Tagger response lacks texts'
@@ -200,8 +204,9 @@ def tag(collection, document, tagger):
 
             start, end = offsets[0]
             text = texts[0]
-            print("offsets, _type, texts, text:", offsets, _type, texts, text, file=sys.stderr)
+            # print("offsets, _type, texts, text:", offsets, _type, texts, text, file=sys.stderr)
             _id = ann_obj.get_new_id('T')
+            print("_id", _id, file=sys.stderr)
             cidmap[cid] = _id
 
             tb = TextBoundAnnotationWithText(
@@ -276,6 +281,7 @@ def tag1():
                 '?' + url_soup.query if url_soup.query else '')
             try:
                 data = ann_obj.get_document_text().encode('utf-8')
+                print("data------------", data, file=sys.stderr)
                 req_headers['Content-length'] = len(data)
                 # Note: Trout slapping for anyone sending Unicode objects here
                 conn.request('POST',
