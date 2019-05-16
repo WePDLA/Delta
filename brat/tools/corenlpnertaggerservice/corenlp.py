@@ -54,13 +54,14 @@ class CoreNLPTagger(object):
 
         # Spawn the process
         self._core_nlp_process = spawn(corenlp_cmd, timeout=600)
+
         # Wait for the models to load, this is not overly fast
         self._core_nlp_process.expect('Entering interactive shell.')
 
-    def __del__(self):
-        # If our child process is still around, kill it
-        if self._core_nlp_process.isalive():
-            self._core_nlp_process.terminate()
+    # def __del__(self):
+    #     # If our child process is still around, kill it
+    #     if self._core_nlp_process.isalive():
+    #         self._core_nlp_process.terminate()
 
     def tag(self, text):
         self._core_nlp_process.sendline(
@@ -127,6 +128,6 @@ class CoreNLPTagger(object):
 
 if __name__ == '__main__':
     # XXX: Hard-coded for testing
-    tagger = CoreNLPTagger('stanford-corenlp-2012-04-09')
+    tagger = CoreNLPTagger('./stanford-corenlp-full-2018-10-05/')
     print(tagger.tag('Just a test, like the ones they do at IBM.\n'
                      'Or Microsoft for that matter.'))
