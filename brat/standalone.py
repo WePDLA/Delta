@@ -25,7 +25,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'server/src'))
 from server import serve
 
 # 获取详细处理的程序，便于调试。
-_VERBOSE_HANDLER = True
+_VERBOSE_HANDLER = False
 _DEFAULT_SERVER_ADDR = ''
 _DEFAULT_SERVER_PORT = 8001
 
@@ -301,7 +301,7 @@ server is experimental and should not be run as administrator.
         there's a single process with few threads of executions, 
         they share data and may coordinate.
         """
-        
+
     except KeyboardInterrupt:
         # normal exit
         pass
