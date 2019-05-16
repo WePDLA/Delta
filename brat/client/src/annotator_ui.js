@@ -2168,7 +2168,32 @@ var AnnotatorUI = (function($, window, undefined) {
         spanForm.find('#entity_types input:radio').click(spanFormSubmitRadio);
         spanForm.find('#event_types input:radio').click(spanFormSubmitRadio);
       };
-
+      $("#tag_Tokens_button").click(function(evt) {
+        alert("已发送给模型进行自动标注，需要发些时间进行操作，耐心等待");
+        evt.preventDefault();
+        $.ajax({
+            type:"POST",
+            url:"http://127.0.0.1:8000/test",
+            dataType:"json",
+            headers: {
+                    "Content-Type": "application/json;charset=utf-8"
+                },
+                contentType:'application/json; charset=utf-8',
+            data:JSON.stringify({
+              'collection': coll,
+              'document': doc,
+              'tagger':'Tokens'
+            }),
+            success:function(data){
+                console.log(data);
+                window.location.reload();
+            },
+            error:function(jqXHR){
+                console.log("Error: "+jqXHR.status);
+            }
+        });
+        // tagCurrentDocument("Tokens");
+      });
       var tagCurrentDocument = function(taggerId) {
         var tagOptions = {
           action: 'tag',
@@ -2197,12 +2222,11 @@ var AnnotatorUI = (function($, window, undefined) {
           $row.append($label).append($button);
           $taggerButtons.append($row);
           // 调取模型点击操作
-
+          console.log("taggerId" +taggerId);
           $button.click(function(evt) {
-            //alert(111);
-            //  alert(111);
-
+            alert("已发送给模型进行自动标注，需要发些时间进行操作，耐心等待");
             tagCurrentDocument(taggerId);
+            //alert("已发送给模型进行自动标注，需要发些时间进行操作，耐心等待");
           });
         });
         $taggerButtons.find('input').button();
@@ -2216,6 +2240,7 @@ var AnnotatorUI = (function($, window, undefined) {
           $('#no_tagger_message').hide();
         }
       }
+
 
       // recursively traverses type hierarchy (entity_types or
       // event_types) and stores normalizations in normDbsByType.
