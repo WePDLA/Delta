@@ -1108,7 +1108,7 @@ class TextAnnotations(Annotations):
 
         Annotations.__init__(self, document, read_only)
 
-    @pysnooper.snoop()
+    # @pysnooper.snoop()
     def _parse_textbound_annotation(
             self, id, data, data_tail, input_file_path):
         type, spans = self._split_textbound_data(id, data, input_file_path)
