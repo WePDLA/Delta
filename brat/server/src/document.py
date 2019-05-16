@@ -683,7 +683,7 @@ def get_directory_information(collection):
     })
 
 
-@pysnooper.snoop()
+# @pysnooper.snoop()
 def save_document(text, docid, collection=None):
     directory = collection
     real_dir = real_directory(directory)
@@ -885,7 +885,7 @@ def _enrich_json_with_data(j_dic, ann_obj):
     except Exception as e:
         # TODO add an issue about the failure?
         issues = []
-        Messager.error('Error: verify_annotation() failed: %s' % e, -1)
+        # Messager.error('Error: verify_annotation() failed: %s' % e, -1)
 
     for i in issues:
         issue = (str(i.ann_id), i.type, i.description)
