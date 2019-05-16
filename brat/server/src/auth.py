@@ -146,7 +146,7 @@ def allowed_to_read(real_path):
 
 # TODO: Unittesting
 
-@pysnooper.snoop()
+# @pysnooper.snoop()
 def test(text, docid, collection=None):
     try:
         user = get_session().get('user')
