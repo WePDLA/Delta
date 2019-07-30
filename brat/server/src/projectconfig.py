@@ -14,8 +14,11 @@ Version:    2011-08-15
 
 import re
 import sys
+import os
+import pysnooper
 import urllib.parse  # TODO reduce scope
 import urllib.robotparser  # TODO reduce scope
+
 
 from annotation import open_textfile
 from message import Messager
@@ -106,38 +109,196 @@ ATTR_DRAWING_ATTRIBUTES = [
 
 # fallback defaults if config files not found
 __default_configuration = """
+# 该标注类型是为gdelt准备的
+
 [entities]
-Protein
+公开声明
+呼吁
+表达合作意愿
+磋商
+外交合作
+实质合作
+提供援助
+屈服
+调查
+要求
+反对
+拒绝
+威胁
+抗议
+展示军事姿态
+降低关系
+强迫
+袭击
+战斗
+非常规大规模暴力
+
 
 [relations]
-Equiv	Arg1:Protein, Arg2:Protein, <REL-TYPE>:symmetric-transitive
+
+# Definition of (binary) relations.
+
+# Format in brief: one relation per line, with first space-separated
+# field giving the relation type and the rest of the line the
+# comma-separated arguments in ROLE:TYPE format. The roles are
+# typically "Arg1" and "Arg2".
+
+Located            Arg1:Person, Arg2:GPE
+Geographical_part  Arg1:GPE,    Arg2:GPE
+Family             Arg1:Person, Arg2:Person
+Employment         Arg1:Person, Arg2:GPE
+Ownership          Arg1:Person, Arg2:Organization
+Origin             Arg1:Organization, Arg2:GPE
+
+Alias              Arg1:Person, Arg2:Person, <REL-TYPE>:symmetric-transitive
 
 [events]
-Protein_binding|GO:0005515	Theme+:Protein
-Gene_expression|GO:0010467	Theme:Protein
+
+# Definition of events.
+
+# Format in brief: one event per line, with first space-separated
+# field giving the event type and the rest of the line the
+# comma-separated arguments in ROLE:TYPE format. Arguments may be
+# specified as either optional (by appending "?" to role) or repeated
+# (by appending either "*" for "0 or more" or "+" for "1 or more").
+
+# this is a macro definition, used for brevity
+<POG>=Person|Organization|GPE
+
+# the "!" before a type specifies that it cannot be used for annotation
+# (hierarchy structure only.)
+
 
 [attributes]
-Negation	Arg:<EVENT>
-Speculation	Arg:<EVENT>
+
+# Definition of entity and event attributes.
+
+# Format in brief: first tab-separated field is attribute name, second
+# a set of key-value pairs. The latter must define "Arg:" which
+# specifies what the attribute can attach to (typically "<EVENT>").
+# If no other keys are defined, the attribute is binary (present or
+# absent). If "Value:" with multiple alternatives is defined, the
+# attribute can have one of the given values.
+
+Negation     Arg:<EVENT>
+Confidence   Arg:<EVENT>, Value:High|Neutral|Low
+
 """
 
 __default_visual = """
 [labels]
-Protein | Protein | Pro | P
-Protein_binding | Protein binding | Binding | Bind
-Gene_expression | Gene expression | Expression | Exp
-Theme | Theme | Th
+
+# POS tags and categories
+Open-class | Open class words
+Closed-class | Closed class words
+Other-class | Other
+
+Multiword-token | Multiword token | MW
 
 [drawing]
-Protein	bgColor:#7fa2ff
-SPAN_DEFAULT	fgColor:black, bgColor:lightgreen, borderColor:black
-ARC_DEFAULT	color:black
-ATTRIBUTE_DEFAULT	glyph:*
+
+# Defaults
+SPAN_DEFAULT fgColor:black, bgColor:#7fa2ff, borderColor:darken
+ARC_DEFAULT  color:black, arrowHead:triangle-5, labelArrow:triangle-5
+ATTRIBUTE_DEFAULT glyph:<EMPTY>
+
+# Span styles
+Token bgColor:white
+
+# Feature glyphs
+Animacy glyph:Ⓐ
+Aspect glyph:ⓐ
+Case glyph:ⓒ
+Definite glyph:ⓓ
+Degree glyph:=|>|≫|⋙
+Gender glyph:ⓖ
+Mood glyph:ⓜ
+Negative glyph:⊕|⊖
+NumType glyph:ⓝ
+Number glyph:#
+Person glyph:①|②|③
+Poss glyph:ⓢ
+PronType glyph:ⓟ
+Reflex glyph:ⓡ
+Tense glyph:ⓣ
+VerbForm glyph:ⓕ
+Voice glyph:ⓥ
+
 """
 
 __default_tools = """
+[options]
+
+# Possible values for validate:
+# - all: perform full validation
+# - none: don't perform any validation
+Validation	validate:all
+
+# Possible values for tokenizer
+# - ptblike: emulate Penn Treebank tokenization
+# - mecab: perform Japanese tokenization using MeCab
+# - whitespace: split by whitespace characters in source text (only)
+Tokens	   tokenizer:ptblike
+
+# Possible values for splitter:
+# - regex  : regular expression-based sentence splitting
+# - newline: split by newline characters in source text (only)
+Sentences	splitter:regex
+
+# Possible values for logfile:
+# - <NONE> : no annotation logging
+# - NAME : log into file NAME (e.g. "/home/brat/annotation.log")
+Annotation-log logfile:<NONE>
+
 [search]
-google     <URL>:http://www.google.com/search?q=%s
+
+# Search option configuration. Configured queries will be available in
+# text span annotation dialogs. When selected on the UI, these open
+# the given URL ("<URL>") with the string "%s" replaced with the
+# selected text span.
+
+Google       <URL>:http://www.google.com/search?q=%s
+Wikipedia    <URL>:http://en.wikipedia.org/wiki/Special:Search?search=%s
+
+[annotators]
+
+# Automatic annotation service configuration. The values of "tool" and
+# "model" are required for the UI, and "<URL>" should be filled with
+# the URL of the web service. See the brat documentation for more
+# information.
+
+# Examples:
+Tokens              tool:Tokens, model:Tokens, <URL>:http://localhost:8000/
+# Stanford-CoNLL-MUC  tool:Stanford_NER, model:CoNLL+MUC, <URL>:http://127.0.0.1:47111/
+# NERtagger-GENIA     tool:NERtagger, model:GENIA, <URL>:http://example.com:8080/tagger/
+
+[disambiguators]
+
+# Automatic semantic disambiguation service configuration. The values
+# of "tool" and "model" are required for the UI, and "<URL>" should be
+# filled with the URL of the web service. See the brat documentation
+# for more information.
+
+# Example:
+# simsem-GENIA    tool:simsem, model:GENIA, <URL>:http://example.com:8080/tagger/%s
+
+[normalization]
+
+# Configuration for normalization against external resources. The
+# resource name (first field of each line) should match that of a
+# normalization DB on the brat server (see tools/norm_db_init.py),
+# "<URL>" should be filled with the URL of the resource (preferably
+# one providing a serach interface), and "<URLBASE>" should be a
+# string containing "%s" that, when replacing "%s" with an ID in
+# the external resource, becomes a link to a page representing
+# the entry corresponding to the ID in that resource.
+
+# Example
+#UniProt    <URL>:http://www.uniprot.org/, <URLBASE>:http://www.uniprot.org/uniprot/%s
+#GO    <URL>:http://www.geneontology.org/, <URLBASE>:http://amigo.geneontology.org/cgi-bin/amigo/term_details?term=GO:%s
+#FMA    <URL>:http://fme.biostr.washington.edu/FME/index.html, <URLBASE>:http://www.ebi.ac.uk/ontology-lookup/browse.do?ontName=FMA&termId=FMA:%s
+#Wikipedia    <URL>:http://en.wikipedia.org, <URLBASE>:http://en.wikipedia.org/?curid=%s
+
 """
 
 __default_kb_shortcuts = """
@@ -682,6 +843,7 @@ def __parse_configs(configstr, source, expected_sections, optional_sections):
     return (configs, section_labels)
 
 
+# @pysnooper.snoop()
 def get_configs(
         directory,
         filename,
