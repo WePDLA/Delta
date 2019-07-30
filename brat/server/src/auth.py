@@ -29,6 +29,7 @@ except ImportError:
     # relpath new to python 2.6; use our implementation if not found
     from common import relpath
 
+
 # To raise if the authority to carry out an operation is lacking
 class NotAuthorisedError(ProtocolError):
     def __init__(self, attempted_action):
