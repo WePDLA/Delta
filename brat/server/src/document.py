@@ -24,7 +24,7 @@ from session import get_session, invalidate_session
 
 import pysnooper
 
-from config import BASE_DIR, DATA_DIR
+from config import BASE_DIR, DATA_DIR, USER_PASSWORD
 
 from annlog import annotation_logging_active
 from annotation import (BIONLP_ST_2013_COMPATIBILITY, JOINED_ANN_FILE_SUFF,
@@ -571,7 +571,8 @@ def get_directory_information(collection):
     user = get_session().get('user')
     if user is None or user == 'guest':
         base_names = []
-    elif user == 'ADMIN':
+    # # 可以从配置文件获取用户。
+    elif user in USER_PASSWORD:
         base_names = [fn[0:-4] for fn in _listdir(real_dir) if fn.endswith('txt')]
     else:
         db = DBlite()
@@ -614,7 +615,7 @@ def get_directory_information(collection):
 
     if user is None or user == 'guest':
         dirlist = []
-    elif user == 'ADMIN':
+    elif user in USER_PASSWORD:
         dirlist = [dir for dir in _listdir(real_dir) if isdir(path_join(real_dir, dir))]
     else: # for user ACL
         dirlist = [dir for dir in _listdir(real_dir) if isdir(path_join(real_dir, dir))]
