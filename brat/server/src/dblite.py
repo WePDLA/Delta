@@ -158,6 +158,7 @@ But none of these changes will commit until the original SELECT statement finish
         finally:
             cursor.close()
 
+
     def set_AnnING_file(self, directory, file, user):
         real_dir = real_directory(directory)
         assert_allowed_to_read(real_dir)
@@ -207,6 +208,7 @@ But none of these changes will commit until the original SELECT statement finish
             cursor.execute("COMMIT")
             cursor.close()
 
+
     def set_Ann_state(self, directory, file, state):
         real_dir = real_directory(directory)
         assert_allowed_to_read(real_dir)
@@ -230,6 +232,7 @@ But none of these changes will commit until the original SELECT statement finish
             cursor.execute("COMMIT")
             cursor.close()
 
+
     def get_AnnNull_files(self, directory):
         real_dir = real_directory(directory)
         assert_allowed_to_read(real_dir)
@@ -247,6 +250,7 @@ But none of these changes will commit until the original SELECT statement finish
             Messager.error("Exception in _query: %s" % e)
         finally:
             cursor.close()
+
 
     def get_AnnING_files(self, directory, user):
         real_dir = real_directory(directory)
