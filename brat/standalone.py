@@ -23,6 +23,7 @@ from config import USER_PASSWORD
 # brat imports
 sys.path.append(os.path.join(os.path.dirname(__file__), 'server/src'))
 from server import serve
+from web_server import app
 
 # 获取详细处理的程序，便于调试。
 _VERBOSE_HANDLER = False
