@@ -36,7 +36,7 @@ from search import (search_entity, search_event, search_note, search_relation,
                     search_text)
 from session import get_session, load_conf, save_conf
 from svg import retrieve_stored, store_svg
-from tag import tag, tag1
+from tag import tag #  tag1
 from undo import undo
 
 # no-op function that can be invoked by client to log a user action
@@ -97,7 +97,7 @@ DISPATCHER = {
     'loadConf': load_conf,
 
     'undo': undo,
-    'tag1': tag1,
+    # 'tag1': tag1,
     'tag': tag,
 
     'deleteDocument': delete_document,
