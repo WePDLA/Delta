@@ -737,12 +737,12 @@ var AnnotatorUI = (function($, window, undefined) {
         $('#span_form input:not([unused])').removeAttr('disabled');
 
         // close span types if there's over typeCollapseLimit
-        if ($('#entity_types .item').length > Configuration.typeCollapseLimit) {
-          $('#entity_types .open').removeClass('open');
-        }
-        if ($('#event_types .item').length > Configuration.typeCollapseLimit) {
-          $('#event_types .open').removeClass('open');
-        }
+        // if ($('#entity_types .item').length > Configuration.typeCollapseLimit) {
+        //   $('#entity_types .open').removeClass('open');
+        // }
+        // if ($('#event_types .item').length > Configuration.typeCollapseLimit) {
+        //   $('#event_types .open').removeClass('open');
+        // }
 
         var showAllAttributes = false;
         if (span) {
