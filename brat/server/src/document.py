@@ -15,6 +15,7 @@ Version:    2011-04-21
 
 
 import sys
+import os
 from errno import EACCES, ENOENT
 from itertools import chain
 from os import listdir
@@ -31,6 +32,7 @@ from annotation import (BIONLP_ST_2013_COMPATIBILITY, JOINED_ANN_FILE_SUFF,
                         TEXT_FILE_SUFFIX, AnnotationCollectionNotFoundError,
                         AnnotationFileNotFoundError, TextAnnotations,
                         open_textfile)
+from savexml import corpus_save
 from auth import AccessDeniedError, allowed_to_read
 from common import CollectionNotAccessibleError, ProtocolError
 from message import Messager
@@ -48,6 +50,67 @@ from stats import get_statistics
 
 from dblite import DBlite, Ann_NULL, Ann_ING, Ann_DONE, Ann_CHECKED
 
+
+from bratreader.repomodel import RepoModel
+
+# r = RepoModel("path/to/bratfolder") # load repomodel
+# r.documents            			    # all documents in your brat corpus
+#
+# doc = r.documents["001"] 			# get document with key 001
+# print(doc.sentences)    			# a list of sentences in document
+# print(doc.annotations)  			# the annotation objects in a document
+
+# Save to XML
+# r.save_xml("my_folder")
+# This creates one XML document per original document
+# in the specified folder.
+
+
+
+def xml_save(dir_data, name_file, out_data):
+    corpus_save(dir_data, out_data)
+    # fit_on_data(dir_data, name_file, out_data)
+    # probs_on_data_ann(dir_data, name_file, out_data)
+    return name_file+'.xml'
+
+
+# @pysnooper.snoop()
+def handle_files(dir_path):
+    if os.path.exists(dir_path):
+        # 指定文件夹下的所有文件和文件夹
+        path_list = os.listdir(dir_path)
+        # 遍历
+        for each_path in path_list:
+            # 如果是文件夹就继续遍历
+            src = os.path.join(dir_path, each_path)
+            if os.path.isdir(os.path.join(dir_path,each_path)):
+                handle_files(src)
+            else:
+                # 如果是指定文件类型，则复制文件
+                file_name = os.path.splitext(each_path)[0]
+                file_type = os.path.splitext(each_path)[1]
+                if file_type==".ann":
+                    print("文件名::::::::",file_type, file=sys.stderr)
+                    if file_type ==".xml":
+                        pass
+                    else:
+                        xml_save(dir_path, file_name, dir_path)
+                    # 判断是否为选择的文件类型
+    else:
+        print("文件类型不存在", file=sys.stderr)
+
+
+def open_xmlfile(filename, mode="r"):
+    with open(filename, "r") as f:
+        if f.endswith(".xml"):
+            print("文件名::::::::", f, file=sys.stderr)
+
+
+# handle_files(dir_data)
+    # for file in os.listdir(real_dir):
+    #     if file.endswith(".ann"):
+    #         file_name = os.path.splitext(file)[0]
+    #         xml_save(directory, file_name, directory)
 
 def _fill_type_configuration(
         nodes,
@@ -732,6 +795,37 @@ class IsDirectoryError(ProtocolError):
 
 # TODO: All this enrichment isn't a good idea, at some point we need an object
 
+# 用于添加xml文件。
+# 设置txt，ann, xml文件的
+
+
+def _enrich_json_with_xml(j_dic, xml_file_path, raw_text=None):
+    if raw_text is not None:
+        # looks like somebody read this already; nice
+        xml = raw_text
+    else:
+        # need to read raw text
+        try:
+            if xml_file_path:
+                with open(xml_file_path, 'r') as xml_file:
+                    xml = xml_file.read()
+            else:
+                (filepath, tempfilename) = os.path.split(xml_file_path)
+                (filename, extension) = os.path.splitext(tempfilename)
+                xml_file = xml_save(filepath, filename, filename)
+                with open(os.path.join(filepath,xml_file),'r') as f:
+                    xml = f.read()
+        except:
+            pass
+        # except IOError:
+        #     raise UnableToReadTextFile(xml_file_path)
+        # except UnicodeDecodeError:
+        #     Messager.error(
+        #         'Error reading text file: nonstandard encoding or binary?', -1)
+        #     raise UnableToReadTextFile(xml_file_path)
+    j_dic['xml'] = xml
+    return True
+
 
 def _enrich_json_with_text(j_dic, txt_file_path, raw_text=None):
     if raw_text is not None:
@@ -740,8 +834,22 @@ def _enrich_json_with_text(j_dic, txt_file_path, raw_text=None):
     else:
         # need to read raw text
         try:
+            (filepath, tempfilename) = os.path.split(txt_file_path)
+            (filename, extension) = os.path.splitext(tempfilename)
+            r = RepoModel(filepath)
+            r.save_xml(filepath)
+            # xml_save(filepath, filename, filename)
+            xml_file_path = os.path.join(filepath, filename+'.xml')
+            # print("xml_file_path::::", r, file=sys.stderr)
+            # if xml_file_path:
+            #     pass
+            # else:
+            #     xml_save(filepath, filename, filename)
+            with open(xml_file_path, 'r') as xml_file:
+                xml = xml_file.read()
             with open_textfile(txt_file_path, 'r') as txt_file:
                 text = txt_file.read()
+
         except IOError:
             raise UnableToReadTextFile(txt_file_path)
         except UnicodeDecodeError:
@@ -750,6 +858,7 @@ def _enrich_json_with_text(j_dic, txt_file_path, raw_text=None):
             raise UnableToReadTextFile(txt_file_path)
 
     j_dic['text'] = text
+    j_dic['xml'] = xml
 
 
     tokeniser = options_get_tokenization(dirname(txt_file_path))
@@ -786,6 +895,9 @@ def _enrich_json_with_text(j_dic, txt_file_path, raw_text=None):
     j_dic['sentence_offsets'] = [o for o in ss_offset_gen(text)]
 
     return True
+
+
+
 
 
 def _enrich_json_with_data(j_dic, ann_obj):
@@ -939,6 +1051,7 @@ def _document_json_dict(document):
     # TODO: We don't check if the files exist, let's be more error friendly
     # Read in the textual data to make it ready to push
     _enrich_json_with_text(j_dic, document + '.' + TEXT_FILE_SUFFIX)
+    # _enrich_json_with_xml(j_dic, document + '.xml')
 
     # 文档标注的位置获取
     with TextAnnotations(document) as ann_obj:

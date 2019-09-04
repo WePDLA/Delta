@@ -226,6 +226,13 @@ def open_textfile(filename, mode='rU'):
     return codecs_open(filename, mode, encoding='utf8', errors='strict')
 
 
+def open_xmlfile(filename, mode='rU'):
+    # enforce universal newline support ('U') in read modes
+    if len(mode) != 0 and mode[0] == 'r' and 'U' not in mode:
+        mode = mode + 'U'
+    return codecs_open(filename, mode, encoding='utf8', errors='strict')
+
+
 def __split_annotation_id(id):
     m = re_match(r'^([A-Za-z]+|#[A-Za-z]*)([0-9]+)(.*?)$', id)
     if m is None:
