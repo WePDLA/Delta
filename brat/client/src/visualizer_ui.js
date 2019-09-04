@@ -1746,9 +1746,13 @@ var VisualizerUI = (function($, window, undefined) {
       };
 
       var onNewSourceData = function(sourceData) {
+        console.log("sourceData::::::::::::");
+        console.log(sourceData);
         if (!sourceData) return;
         var $sourceFiles = $('#source_files').empty();
         /* Add download links for all available extensions */
+        var source_files = sourceData.source_files.push('xml')
+        console.log(source_files);
         $.each(sourceData.source_files, function(extNo, ext) {
           var $link = $('<a target="brat_search"/>').
               text(ext).
@@ -1761,6 +1765,15 @@ var VisualizerUI = (function($, window, undefined) {
           if (extNo) $sourceFiles.append(' ');
           $sourceFiles.append($link);
         });
+        // var $xmlink = $('<a target="brat_search"/>').
+        //       text("xml").
+        //       attr('href',
+        //           'ajax.cgi?action=downloadFile&collection=' + encodeURIComponent(coll) +
+        //           '&document=' + encodeURIComponent(doc) + '&extension=xml' +
+        //           // TODO: Extract the protocol version into somewhere global
+        //           '&protocol=' + 1);
+        // $xmlink.button();
+        // $sourceFiles.append($xmlink);
         /* Add a download link for the whole collection */
         invalidateSavedSVG();
 
@@ -1768,7 +1781,7 @@ var VisualizerUI = (function($, window, undefined) {
         if (mtime) {
           // we're getting seconds and need milliseconds
           //$('#document_ctime').text("Created: " + Annotator.formatTime(1000 * sourceData.ctime)).css("display", "inline");
-          $('#document_mtime').text("Last modified: " + Util.formatTimeAgo(1000 * mtime)).show();
+          $('#document_mtime').text("最后修改时间: " + Util.formatTimeAgo(1000 * mtime)).show();
         } else {
           //$('#document_ctime').css("display", "none");
           $('#document_mtime').hide();
@@ -1796,7 +1809,7 @@ var VisualizerUI = (function($, window, undefined) {
         if (oldColl != coll) {
           var $sourceCollection = $('#source_collection').empty();
           var $collectionDownloadLink = $('<a target="brat_search"/>')
-            .text('Download tar.gz')
+            .text('下载 tar.gz')
             .attr('href', 'ajax.cgi?action=downloadCollection&collection=' + encodeURIComponent(coll)
             + '&include_conf=' + ($('#source_collection_conf_on').is(':checked') ? 1 : 0)
             // TODO: Extract the protocol version into somewhere global
@@ -2330,7 +2343,8 @@ var VisualizerUI = (function($, window, undefined) {
         $('#autorefresh_mode').button('refresh');
 
         // Type Collapse Limit
-        $('#type_collapse_limit')[0].value = Configuration.typeCollapseLimit;
+
+        $('#type_collapse_limit')[0].value = Configuration.typeCollapseLimit || '';
 
         // Paging
         $('#paging_size')[0].value = Configuration.pagingSize || '';
