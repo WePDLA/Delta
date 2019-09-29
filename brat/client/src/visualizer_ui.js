@@ -2018,6 +2018,7 @@ var VisualizerUI = (function($, window, undefined) {
             // 提交的用户名和密码
           },
           function(response) {
+              location.reload();
               if (response.exception) {
                 dispatcher.post('showForm', [authForm]);
                 $('#auth_user').select().focus();
