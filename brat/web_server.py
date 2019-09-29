@@ -136,6 +136,7 @@ def test():
         fr.write("")
     return jsonify(json_resp)
 
+
 CORS(app, supports_credentials=True)
 
 if __name__ == "__main__":
