@@ -19,6 +19,7 @@ def importann(pathtofile):
     path, extension = os.path.splitext(pathtofile)
 
     sentences = []
+    text = []
 
     char_index = 0
 
@@ -26,8 +27,13 @@ def importann(pathtofile):
         sentences.append(Sentence(sent_index, line, char_index))
         char_index += len(line)
 
-    _join(annotations.values(), sentences)
-    return sentences
+    _join(annotations.values(), sentences)   
+    
+    
+    with open(path + ".txt", encoding='utf-8') as input_file:
+        text = input_file.read()
+    
+    return sentences, text
 
 
 def _join(annotations, sentences):

@@ -6,7 +6,7 @@ from bratreader.event import Event
 class AnnotatedDocument(object):
     """Represent a document in a Brat Corpus."""
 
-    def __init__(self, key, sentences):
+    def __init__(self, key, sentences, text):
         """
         Create a brat document.
 
@@ -51,8 +51,7 @@ class AnnotatedDocument(object):
                 eID = eID + 1
         self.events = events
 
-        self.text = u"\n".join([u" ".join([x.form for x in s.words])
-                               for s in sentences])
+        self.text = text
 
     def __repr__(self):
         """Representation of the AnnotatedDocument."""
