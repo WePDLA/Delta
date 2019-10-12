@@ -75,9 +75,16 @@ def _createannotationobjects(annotations):
 
         split = t.split()
         label = split[0]
-
-        spans = [[int(span.split()[0]), int(span.split()[1])]
-                 for span in u" ".join(split[1:]).split(";")]
+        
+        try:
+            #ann formate by brat
+            spans = [[int(span.split()[0]), int(span.split()[1])] for span in u" ".join(split[1:]).split(";")]
+        except:
+            #patch ann formate by BioNLP
+            split.append(splitted[1])
+            split.append(splitted[2])
+            spans = [[int(span.split()[0]), int(span.split()[1])] for span in u" ".join(split[1:]).split(";")]      
+        
 
         targets[key] = Annotation(key, repr, spans, [label])
         targets[key].type = 'T'
