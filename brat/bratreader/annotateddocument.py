@@ -22,7 +22,17 @@ class AnnotatedDocument(object):
         self.sentences = sentences
         annotations = [chain.from_iterable([w.annotations for w in x.words])
                        for x in sentences]
+        
+        
+        #kzg modify
+#       self.annotations = list(chain.from_iterable(annotations))
         self.annotations = list(chain.from_iterable(annotations))
+        annotations_tmp = []
+        for ann_i in range(len(self.annotations)):
+            if self.annotations[ann_i] not in annotations_tmp:
+                annotations_tmp.append(self.annotations[ann_i])
+        self.annotations = annotations_tmp
+        #kzg modify
 
         events = []
         eID = 0
