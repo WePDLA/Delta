@@ -89,7 +89,7 @@ def test():
 
     # data_text = request.data.decode('utf-8')
     data_text = json.loads(request.get_data(as_text=True))
-    document_path = "/Users/zou/Documents/GitHub/Delta/brat/data" + data_text['collection']+data_text['document']
+    document_path = "./data" + data_text['collection']+data_text['document']
     print(document_path)
     predict(document_path + '.txt',document_path + '.ann')
     print("-----------------------------------------------------------" * 35)
