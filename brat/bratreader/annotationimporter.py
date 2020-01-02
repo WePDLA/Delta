@@ -75,8 +75,7 @@ def _createannotationobjects(annotations):
 
         split = t.split()
         label = split[0]
-#         print("t",t)
-#         print("key",key)
+        
         try:
             #ann formate by brat
             spans = [[int(span.split()[0]), int(span.split()[1])] for span in u" ".join(split[1:]).split(";")]
@@ -179,7 +178,6 @@ def _evaluate_annotations(annotations):
     for e in annotations["E"].values():
         # function returns the id of T.
         targetkeys = _find_t(e, annotations)
-#         print("e",e)
         origintype, originkey = e.split()[0].split(":")
         originkey = originkey[1:]
         targets = [x[1:] for x in targetkeys]
