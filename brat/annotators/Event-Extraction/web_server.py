@@ -14,7 +14,7 @@ import pandas as pd
 app = Flask("__name__")
 
 
-@app.route("/",methods=['POST'])
+@app.route("/", methods=['POST'])
 def hello():
 
     json_resp = {}
@@ -33,8 +33,7 @@ def hello():
     #     f.write(data_text)
 
     # predict('./format_ann_data/'+document_name+'.txt', document_path+'.txt', document_path+'.ann') # model predict
-    predict(document_path + '.txt',
-            document_path + '.ann')  # model predict
+    predict(document_path + '.txt', document_path + '.ann')  # model predict
 
     with open(document_path+'.ann', 'r', encoding="utf-8") as f:
         content = f.read()
@@ -74,7 +73,7 @@ def hello():
         texts = ann['texts']
 
         print(offsets, _type, texts)
-    with open('./glue_data/EE/the_last_data/single_data/test.txt', "w", encoding="utf-8") as fr:
+    with open('./test.txt', "w", encoding="utf-8") as fr:
         fr.write("")
     return jsonify(json_resp)
     # return "ok"
@@ -92,8 +91,10 @@ def test():
     document_path = "/home/linbo/workspace/GitHubs/Delta/brat/data" + data_text['collection']+data_text['document']
     print("document_path",document_path)
     predict(document_path + '.txt',document_path + '.ann')
-    print("-----------------------------------------------------------" * 35)
+    model = data_text['model']
+    print(model)
 
+    print("-----------------------------------------------------------" * 35)
     with open(document_path+'.ann', 'r', encoding="utf-8") as f:
         content = f.read()
         lines = content.split("\n")
@@ -132,9 +133,10 @@ def test():
         texts = ann['texts']
 
         print(offsets, _type, texts)
-    with open('./glue_data/EE/the_last_data/single_data/test.txt', "w", encoding="utf-8") as fr:
+    with open('./test.txt', "w", encoding="utf-8") as fr:
         fr.write("")
     return jsonify(json_resp)
+
 
 CORS(app, supports_credentials=True)
 
