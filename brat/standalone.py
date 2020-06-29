@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 # Minimal standalone brat server based on SimpleHTTPRequestHandler.
 
 # Run as apache, e.g. as
@@ -21,9 +19,8 @@ from urllib.parse import unquote
 from config import USER_PASSWORD
 
 # brat imports
-sys.path.append(os.path.join(os.path.dirname(__file__), 'server/src'))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'server/src/'))
 from server import serve
-from web_server import app
 
 # 获取详细处理的程序，便于调试。
 _VERBOSE_HANDLER = False
