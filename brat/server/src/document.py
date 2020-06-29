@@ -849,6 +849,7 @@ def _enrich_json_with_text(j_dic, txt_file_path, raw_text=None):
                 xml = xml_file.read()
             with open_textfile(txt_file_path, 'r') as txt_file:
                 text = txt_file.read()
+            j_dic['xml'] = xml
 
         except IOError:
             raise UnableToReadTextFile(txt_file_path)
@@ -858,7 +859,6 @@ def _enrich_json_with_text(j_dic, txt_file_path, raw_text=None):
             raise UnableToReadTextFile(txt_file_path)
 
     j_dic['text'] = text
-    # j_dic['xml'] = xml
 
 
     tokeniser = options_get_tokenization(dirname(txt_file_path))
