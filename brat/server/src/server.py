@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding:utf-8 -*-
 # -*- Mode: Python; tab-width: 4; indent-tabs-mode: nil; -*-
 # vim:set ft=python ts=4 sw=4 sts=4 autoindent:
@@ -23,7 +22,6 @@ from os.path import join as path_join
 from os.path import abspath
 from sys import version_info
 from time import time
-
 
 def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
