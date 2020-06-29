@@ -88,13 +88,11 @@ def test():
 
     # data_text = request.data.decode('utf-8')
     data_text = json.loads(request.get_data(as_text=True))
-    document_path = "./data" + data_text['collection']+data_text['document']
-    print(document_path)
-
+    document_path = "/home/linbo/workspace/GitHubs/Delta/brat/data" + data_text['collection']+data_text['document']
+    print("document_path",document_path)
+    predict(document_path + '.txt',document_path + '.ann')
     model = data_text['model']
     print(model)
-
-    predict(document_path + '.txt', document_path + '.ann')
 
     print("-----------------------------------------------------------" * 35)
     with open(document_path+'.ann', 'r', encoding="utf-8") as f:

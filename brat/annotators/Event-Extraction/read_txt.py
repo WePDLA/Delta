@@ -2,7 +2,6 @@
 import os
 from stanfordcorenlp import StanfordCoreNLP
 
-
 def get_pos(token, nlp_res):
     token_list = []
     res_pos_list = []
@@ -20,7 +19,6 @@ def get_pos(token, nlp_res):
                 token_list.append(token)
                 res_pos_list.append(res_pos)
     return token_list, res_pos_list
-
 
 def select_file(dirname):
     result = []
@@ -74,7 +72,7 @@ def read_txt_To_test_data(txt_path):
     with open(txt_path,"r",encoding="utf-8") as fr:
         all_content = fr.read()
         content = all_content.replace("\n", "").split("\n")
-        # print("content:",content)
+        print("content:",content)
     # os.system("mv " + path + " " + output_dir)
 
     nlp = StanfordCoreNLP(r'./stanford-corenlp-full-2018-10-05/')
@@ -98,12 +96,13 @@ def read_txt_To_test_data(txt_path):
                     f1.write("----------")
                     f1.write("\n")
 
+
 def predict(txt_input_path, txt_output_path):
     read_txt_To_test_data(txt_input_path)
     os.system("python EventExtract_trigger_cross_validation.py --out_put_ann=" + str(txt_output_path))
-    print("模型预测成功 !")
+    print("model predict success !")
 
 #
-# txt_input_path = "/Users/zou/Documents/GitHub/Delta/brat/data/test_files/text_17.txt"
-# txt_output_path = "/Users/zou/Documents/GitHub/Delta/brat/data/test_files/text_17.ann"
+# txt_input_path = "/home/feng/brat-master/data/ace_input/1.txt"
+# txt_output_path = "/home/feng/brat-master/data/ace_input/1.ann"
 # predict(txt_input_path, txt_output_path)
