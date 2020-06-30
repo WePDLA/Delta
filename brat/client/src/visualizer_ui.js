@@ -346,7 +346,7 @@ var VisualizerUI = (function($, window, undefined) {
                            '"/>');
             } else {
               // normal, as text
-
+              //
               // max length restriction
               if (value.length > 300) {
                 value = value.substr(0, 300) + ' ...';

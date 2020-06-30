@@ -2169,6 +2169,7 @@ var AnnotatorUI = (function($, window, undefined) {
         spanForm.find('#event_types input:radio').click(spanFormSubmitRadio);
       };
 
+      // 自动标注提交请求地方
       $("#tag_Tokens_button").click(function(evt) {
         alert("已发送给模型进行自动标注，需要发些时间进行操作，耐心等待");
         evt.preventDefault();
