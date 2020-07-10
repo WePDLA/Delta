@@ -24,12 +24,12 @@ def hello():
 
     data_text = request.data.decode('utf8')
     print("-----------------------------------------------------------"*35)
-
     print(data_text)
-    # data_text = "欧盟外长称将积极考虑解除对华武器出口禁令环球网记者赵文杰报道，据日本《读卖新闻》11月3日报道，正在日本访问的欧盟外长凯瑟琳-阿什顿2日接受了日本媒体采访。就对华武器禁运问题，阿什顿说“我们将把对华军售问题作为与中国的关系这个大问题的一部分来考虑”，表示将积极着手解决该问题。　　阿什顿在接受采访时还说：“欧盟期待着与中国建立强有力的建设性关系，积极地倾听中国的主张非常重要。”　　报道称，阿什顿10月25日在北京曾就此与中方进行了磋商。由于欧盟在欧债危机问题上希望获得中国援助，因此在11月3日开幕的G20首脑峰会上，还可能提及解除对华武器禁运的可能性，将此与中国的援助挂钩。"
+    # data_text = "欧盟外长称将积极考虑解除对华武器出口禁令环球网记者赵文杰报道，据日本《读卖新闻》11月3日报道，正
+    # 在日本访问的欧盟外长凯瑟琳-阿什顿2日接受了日本媒体采访。就对华武器禁运问题，阿什顿说“我们将把对华军售问题作为与中国的关系这个大问题的一部分来考虑”，表示将积极着手解决该问题。　　阿什顿在接受采访时还说：“欧盟期待着与中国建立强有力的建设性关系，积极地倾听中国的主张非常重要。”　　报道称，阿什顿10月25日在北京曾就此与中方进行了磋商。由于欧盟在欧债危机问题上希望获得中国援助，因此在11月3日开幕的G20首脑峰会上，还可能提及解除对华武器禁运的可能性，将此与中国的援助挂钩。"
     document_path = data_text.split("#*^$#")[0]
     document_name = document_path.split("/")[-1]
-    #with open(test_path+'.txt',"w",encoding="utf-8")as f:
+    # with open(test_path+'.txt',"w",encoding="utf-8")as f:
     #     f.write(data_text)
 
     # predict('./format_ann_data/'+document_name+'.txt', document_path+'.txt', document_path+'.ann') # model predict
@@ -90,8 +90,8 @@ def test():
     data_text = json.loads(request.get_data(as_text=True))
     document_path = "/home/linbo/workspace/GitHubs/Delta/brat/data" + data_text['collection']+data_text['document']
     print("document_path",document_path)
-    predict(document_path + '.txt',document_path + '.ann')
-    model = data_text['model']
+    predict(document_path + '.txt', document_path + '.ann')
+    model = data_text['model_type']
     print(model)
 
     print("-----------------------------------------------------------" * 35)
