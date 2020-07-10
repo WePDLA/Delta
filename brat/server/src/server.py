@@ -172,7 +172,7 @@ class DefaultNoneDict(dict):
         return None
 
 
-#@pysnooper.snoop()
+# @pysnooper.snoop()
 def _safe_serve(params, client_ip, client_hostname, cookie_data):
     # Note: Only logging imports here
     from config import WORK_DIR
@@ -303,8 +303,6 @@ def _server_crash(cookie_hdrs, e):
 
 # Serve the client request
 
-
-#@pysnooper.snoop()
 def serve(params, client_ip, client_hostname, cookie_data):
     # The session relies on the config, wait-for-it
     cookie_hdrs = None

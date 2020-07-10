@@ -2173,6 +2173,7 @@ var AnnotatorUI = (function($, window, undefined) {
       $("#tag_Tokens_button").click(function(evt) {
         alert("已发送给模型进行自动标注，需要发些时间进行操作，耐心等待");
         evt.preventDefault();
+        model_type = $("#model_type").val();
         $.ajax({
             type:"POST",
             url:"http://127.0.0.1:8000/test",
@@ -2184,6 +2185,7 @@ var AnnotatorUI = (function($, window, undefined) {
             data:JSON.stringify({
               'collection': coll,
               'document': doc,
+              'model_type': model_type,
               'tagger':'Tokens'
             }),
             success:function(data){
